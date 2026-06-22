@@ -19,6 +19,10 @@ router.post('/auth/admin/login', apiController.adminLogin);
 
 // ==================== ADMIN DASHBOARD API ====================
 router.get('/admin/dashboard/stats', authMiddleware, apiController.getAdminDashboardStats);
+
+// Admin Notifications
+router.get('/admin/notifications', authMiddleware, apiController.getAdminNotifications);
+router.put('/admin/notifications/mark-all-read', authMiddleware, apiController.markAllAdminNotificationsRead);
 router.get('/dashboard/complete', authMiddleware, apiController.getDashboardData);
 
 // ==================== SUBMISSIONS API (ADMIN) ====================

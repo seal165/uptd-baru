@@ -1009,6 +1009,66 @@ const apiController = {
         }
     },
 
+    // ==================== ADMIN NOTIFICATIONS ====================
+    getAdminNotifications: async (req, res) => {
+        try {
+            const userId = req.user?.id;
+            if (!userId) {
+                return res.status(401).json({ success: false, message: 'Unauthorized' });
+            }
+
+            if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+                return res.status(403).json({ success: false, message: 'Forbidden' });
+            }
+
+            const [notifications] = await db.query(`
+                SELECT * FROM notifications 
+                WHERE user_id = 0 
+                ORDER BY created_at DESC 
+                LIMIT 50
+            `);
+
+            res.json({
+                success: true,
+                data: notifications
+            });
+
+        } catch (error) {
+            console.error('❌ Error getting admin notifications:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Gagal mengambil notifikasi admin: ' + error.message
+            });
+        }
+    },
+
+    markAllAdminNotificationsRead: async (req, res) => {
+        try {
+            const userId = req.user?.id;
+            if (!userId) {
+                return res.status(401).json({ success: false, message: 'Unauthorized' });
+            }
+
+            if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+                return res.status(403).json({ success: false, message: 'Forbidden' });
+            }
+
+            await db.query(`UPDATE notifications SET is_read = 1 WHERE user_id = 0`);
+
+            res.json({
+                success: true,
+                message: 'Semua notifikasi admin telah ditandai dibaca'
+            });
+
+        } catch (error) {
+            console.error('❌ Error marking admin notifications read:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Gagal menandai notifikasi: ' + error.message
+            });
+        }
+    },
+
     // ==================== GET SUBMISSIONS ====================
     getSubmissions: async (req, res) => {
         try {
@@ -6089,6 +6149,12 @@ const apiController = {
             // 10. LOG ACTIVITY & RESPONSE
             await db.query("INSERT INTO activities (user_id, activity_name, created_at) VALUES (?, 'create_submission', NOW())", [userId]);
             
+            // 11. NOTIFY ADMIN (user_id = 0)
+            await db.query(
+                `INSERT INTO notifications (user_id, title, message, href) VALUES (?, ?, ?, ?)`,
+                [0, 'Pengajuan Baru Masuk', `Ada pengajuan baru (${no_permohonan_final}) dari ${nama_instansi || nama_pemohon || 'Pelanggan'}`, `/admin/submissions`]
+            );
+
             console.log('✅ SUBMISSION SUCCESS:', submissionId, 'Qty:', finalQty);
             
             res.json({
@@ -6618,6 +6684,12 @@ const apiController = {
             
             console.log('✅ Update result:', updateResult);
             console.log('✅ Payment proof uploaded successfully');
+            
+            // NOTIFY ADMIN (user_id = 0)
+            await db.query(
+                `INSERT INTO notifications (user_id, title, message, href) VALUES (?, ?, ?, ?)`,
+                [0, 'Bukti Pembayaran Diunggah', `Bukti pembayaran untuk Invoice ${check[0].no_invoice || '-'} telah diunggah`, `/admin/submissions`]
+            );
             
             res.json({
                 success: true,
