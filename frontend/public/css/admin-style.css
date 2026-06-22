@@ -1222,6 +1222,7 @@ body {
 .nilai-2 { background: #ffedd5; color: #f97316; }
 .nilai-3 { background: #dbeafe; color: #2563eb; }
 .nilai-4 { background: #d1fae5; color: #059669; }
+.nilai-5 { background: #dcfce7; color: #16a34a; }
 .keterangan-box  { background: #f8f9fa; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; border-left: 4px solid var(--primary-green); }
 .keterangan-item { display: inline-block; margin-right: 2rem; font-size: 0.9rem; }
 .keterangan-item span { display: inline-block; width: 20px; height: 20px; border-radius: 4px; margin-right: 5px; vertical-align: middle; }
@@ -1417,6 +1418,9 @@ body {
 .nilai-2 { background: #ffedd5; color: #f97316; }
 .nilai-3 { background: #dbeafe; color: #2563eb; }
 .nilai-4 { background: #d1fae5; color: #059669; }
+.nilai-5 { background: #dcfce7; color: #16a34a; }
+.nilai-5 { background: #dcfce7; color: #16a34a; }
+.nilai-5 { background: #dcfce7; color: #16a34a; }
 .keterangan-box  { background: #f8f9fa; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; border-left: 4px solid var(--primary-green); }
 .keterangan-item { display: inline-block; margin-right: 2rem; font-size: 0.9rem; }
 .keterangan-item span { display: inline-block; width: 20px; height: 20px; border-radius: 4px; margin-right: 5px; vertical-align: middle; }

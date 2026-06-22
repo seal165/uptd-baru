@@ -33,19 +33,13 @@
         <%- include('partials/sidebar', { page: 'users' }) %>
 
         <main class="main-content">
-            <%- include('partials/top-navbar', { pageTitle: 'Detail Pemohon' }) %>
+            <%- include('partials/top-navbar', { pageTitle: 'Detail Pemohon', backLink: { url: '/admin/users', text: 'Kembali' } }) %>
 
             <div class="content-body">
                 <!-- Alert Message -->
                 <div id="alertMessage" class="alert alert-dismissible fade show" style="display: none;"></div>
 
-                <!-- Navigation -->
-                <div class="mb-4">
-                    <a href="/admin/users" class="text-decoration-none text-muted">
-                        <i class="fas fa-arrow-left me-2"></i>Kembali ke Daftar Pemohon
-                    </a>
-                </div>
-
+                
         <!-- Profile Card -->
         <div class="profile-card" id="profileCard">
             <!-- Akan diisi JavaScript -->
