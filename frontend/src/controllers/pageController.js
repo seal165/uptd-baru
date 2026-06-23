@@ -1428,6 +1428,62 @@ const pageController = {
             user: req.session?.user,
             questions: []
         });
+    },
+    // ==================== PUBLIC KUISIONER ====================
+    publicKuisioner: async (req, res) => {
+        try {
+            const submissionId = req.params.submissionId;
+            const API_URL = process.env.API_URL || 'http://localhost:5000/api';
+
+            // Cek apakah kuisioner sudah ada
+            let alreadyFilled = false;
+            let reportAvailable = false;
+            const token = req.session?.token;
+
+            if (token) {
+                try {
+                    const checkRes = await axios.get(`${API_URL}/kuisioner/check/${submissionId}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (checkRes.data && checkRes.data.success) {
+                        alreadyFilled = checkRes.data.exists || false;
+                    }
+                } catch (e) {}
+
+                // Cek laporan
+                try {
+                    const subRes = await axios.get(`${API_URL}/submissions/${submissionId}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (subRes.data && subRes.data.success) {
+                        reportAvailable = !!(subRes.data.data.report && subRes.data.data.report.file_laporan);
+                    }
+                } catch (e) {}
+            }
+
+            // Ambil pertanyaan
+            let questions = [];
+            try {
+                const qRes = await axios.get(`${API_URL}/kuisioner/questions/public`);
+                if (qRes.data && qRes.data.success) {
+                    questions = qRes.data.data || [];
+                }
+            } catch (e) {}
+
+            res.render('kuisioner', {
+                title: 'Kuisioner Kepuasan - UPTD Lab',
+                layout: false,
+                submissionId,
+                alreadyFilled,
+                reportAvailable,
+                questions,
+                user: req.session?.user || null,
+                error: null
+            });
+        } catch (error) {
+            console.error('Error loading kuisioner:', error);
+            res.status(500).send('Terjadi kesalahan');
+        }
     }
 };
 

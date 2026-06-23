@@ -325,11 +325,9 @@
         
         if (!statusLaporan || !actionLaporan) return;
         
-        // 🔥 CEK APAKAH LAPORAN SUDAH ADA
         const hasReport = data.report && data.report.file_laporan;
         
         if (hasReport) {
-            // Laporan sudah diupload oleh admin
             const fileUrl = buildProtectedFileUrl('laporan', data.report.file_laporan, token);
             
             statusLaporan.innerHTML = '<i class="fas fa-check-circle text-success"></i> Laporan siap diunduh';
@@ -337,70 +335,69 @@
                 laporanDate.innerHTML = `Diterbitkan: ${formatDate(data.report.tanggal_selesai || data.report.created_at)}`;
             }
             
-            // 🔥 TAMPILKAN 2 TOMBOL: Preview dan Download
-            actionLaporan.innerHTML = `
-                <a href="#" onclick="window.openFileWithToken('${fileUrl}', '${token}'); return false;" class="btn btn-sm btn-outline-primary me-1">
-                    Preview
-                </a>
-                <a href="#" onclick="window.downloadFileWithToken('${fileUrl}', '${token}'); return false;" class="btn btn-sm btn-success">
-                    Download
-                </a>
-            `;
-            
-            // 🔥 CEK APAKAH KUIISIONER SUDAH DIISI
             if (!hasKuisioner) {
-                // Belum isi kuisioner - tampilkan tombol isi kuisioner
-                kuisionerSection.style.display = 'block';
-                
-                // Tambahkan info bahwa laporan bisa didownload setelah isi kuisioner
-                const existingInfo = document.querySelector('#kuisioner-section .alert-info');
-                if (!existingInfo) {
-                    const infoDiv = document.createElement('div');
-                    infoDiv.className = 'alert alert-info mt-3 mb-0';
-                    infoDiv.innerHTML = '<i class="fas fa-info-circle me-2"></i> Laporan siap diunduh. Silakan isi kuisioner terlebih dahulu.';
-                    document.querySelector('#kuisioner-section .card-body-custom').appendChild(infoDiv);
+                // Belum isi kuisioner
+                if (kuisionerSection) {
+                    kuisionerSection.style.display = 'block';
+                    // Cari alert info yang sudah ada, jika tidak ada buat baru
+                    let existingInfo = kuisionerSection.querySelector('.alert-info');
+                    if (!existingInfo) {
+                        const infoDiv = document.createElement('div');
+                        infoDiv.className = 'alert alert-info mt-3';
+                        infoDiv.innerHTML = '<i class="fas fa-info-circle me-2"></i> Laporan siap diunduh. Silakan isi kuisioner terlebih dahulu.';
+                        // Masukkan setelah border-bottom
+                        const borderDiv = kuisionerSection.querySelector('.border-bottom');
+                        if (borderDiv && borderDiv.nextSibling) {
+                            borderDiv.parentNode.insertBefore(infoDiv, borderDiv.nextSibling);
+                        } else {
+                            kuisionerSection.appendChild(infoDiv);
+                        }
+                    }
                 }
-                
-                // Sembunyikan sementara tombol download (tapi tetap tampil preview?)
-                // Atau biarkan preview tetap bisa dilihat, tapi download baru bisa setelah isi kuisioner
-                // Sesuai permintaan: tombol download dan preview baru muncul setelah isi kuisioner
-                // Jadi kita sembunyikan dulu
                 actionLaporan.innerHTML = `
                     <span class="text-muted small">Laporan tersedia setelah mengisi kuisioner</span>
                 `;
             } else {
-                // Sudah isi kuisioner - tampilkan tombol download laporan dan kuisioner
-                kuisionerSection.style.display = 'block';
-                kuisionerSection.innerHTML = `
-                    <div class="card-header-custom">
-                        <h6><i class="fas fa-star"></i> KUIISIONER KEPUASAN</h6>
-                    </div>
-                    <div class="card-body-custom text-center">
+                // Sudah isi kuisioner
+                if (kuisionerSection) {
+                    kuisionerSection.style.display = 'block';
+                    // Kosongkan isi section selain border dan judul
+                    const existingContent = kuisionerSection.querySelector('.kuisioner-content');
+                    if (existingContent) {
+                        existingContent.remove();
+                    }
+                    // Buat container baru
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'kuisioner-content text-center p-3';
+                    contentDiv.innerHTML = `
                         <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
                         <h6>Terima Kasih!</h6>
                         <p class="text-muted small mb-3">Anda telah mengisi kuisioner kepuasan untuk layanan ini.</p>
                         <button class="btn btn-outline-primary" onclick="window.downloadKuisionerPDF()">
-                            Download Salinan Kuisioner
+                            <i class="fas fa-file-pdf me-1"></i> Download Salinan Kuisioner
                         </button>
-                    </div>
-                `;
-                
+                    `;
+                    // Hapus alert info jika ada
+                    const existingInfo = kuisionerSection.querySelector('.alert-info');
+                    if (existingInfo) existingInfo.remove();
+                    kuisionerSection.appendChild(contentDiv);
+                }
                 actionLaporan.innerHTML = `
                     <a href="#" onclick="window.openFileWithToken('${fileUrl}', '${token}'); return false;" class="btn btn-sm btn-outline-primary me-1">
-                        Preview
+                        <i class="fas fa-eye"></i> Preview
                     </a>
                     <a href="#" onclick="window.downloadFileWithToken('${fileUrl}', '${token}'); return false;" class="btn btn-sm btn-success">
-                        Download
+                        <i class="fas fa-download"></i> Download
                     </a>
                 `;
             }
-            
         } else {
-            // Belum ada laporan
             statusLaporan.innerHTML = '<i class="fas fa-hourglass-half text-secondary"></i> Laporan akan tersedia setelah pengujian selesai';
             actionLaporan.innerHTML = '';
             if (laporanDate) laporanDate.innerHTML = '';
-            kuisionerSection.style.display = 'none';
+            if (kuisionerSection) {
+                kuisionerSection.style.display = 'none';
+            }
         }
     }
 

@@ -4,282 +4,688 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kuisioner Kepuasan – UPTD Laboratorium</title>
-    <meta name="description" content="Formulir kuisioner kepuasan pelanggan UPTD Laboratorium Pengujian Bahan Konstruksi Bangunan">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ===== RESET & BASE ===== */
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 32px 16px;
+            line-height: 1.6;
+        }
+        .page-wrap {
+            max-width: 720px;
+            width: 100%;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+            padding: 40px 32px;
+            position: relative;
+        }
+
+        /* ===== PROGRESS BAR ===== */
+        .progress-wrap {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+            padding: 4px 0 12px 0;
+            margin-bottom: 4px;
+            border-radius: 20px 20px 0 0;
+        }
+        .progress-fill {
+            height: 4px;
+            background: linear-gradient(90deg, #2563eb, #7c3aed);
+            border-radius: 8px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* ===== TITLE CARD ===== */
+        .title-card {
+            text-align: center;
+            padding: 24px 0 20px 0;
+            border-bottom: 1px solid #e9edf2;
+        }
+        .title-card h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+        .title-card .desc {
+            color: #64748b;
+            font-size: 14px;
+            max-width: 480px;
+            margin: 0 auto 12px;
+        }
+        .title-card .org-tag {
+            display: inline-block;
+            background: #eef2ff;
+            color: #4338ca;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 16px;
+            border-radius: 100px;
+        }
+        .title-card .org-tag i { margin-right: 6px; }
+
+        /* ===== FILLED BANNER ===== */
+        .filled-banner {
+            display: none;
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin: 24px 0 0 0;
+            color: #065f46;
+            font-weight: 500;
+            align-items: center;
+            gap: 14px;
+            font-size: 15px;
+        }
+        .filled-banner.show {
+            display: flex;
+        }
+        .filled-banner i {
+            font-size: 28px;
+            color: #059669;
+            flex-shrink: 0;
+        }
+
+        /* ===== REQUIRED NOTE ===== */
+        .required-note {
+            font-size: 13px;
+            color: #64748b;
+            padding: 16px 0 12px 0;
+            border-bottom: 1px solid #f1f4f9;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 14px;
+        }
+        .required-note em {
+            font-style: normal;
+            font-weight: 700;
+            color: #0f172a;
+            background: #f1f5f9;
+            padding: 0 6px;
+            border-radius: 4px;
+        }
+
+        /* ===== QUESTION CARDS ===== */
+        .q-card {
+            background: #fafcff;
+            border: 1px solid #e9edf2;
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-top: 16px;
+            transition: border 0.2s, box-shadow 0.2s;
+        }
+        .q-card.focused {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37,99,235,0.08);
+        }
+        .q-card.has-error {
+            border-color: #dc2626;
+            background: #fef2f2;
+        }
+        .q-card .q-num {
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 4px;
+        }
+        .q-card .q-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: #0f172a;
+            margin-bottom: 14px;
+        }
+        .q-card .q-text .req {
+            color: #dc2626;
+            margin-left: 4px;
+        }
+
+        /* ===== LIKERT TABLE ===== */
+        .likert-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .likert-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            font-size: 13px;
+            color: #1e293b;
+            padding: 8px 4px;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+            min-width: 36px;
+        }
+        .likert-table td {
+            padding: 6px 4px;
+            text-align: center;
+            border-bottom: 1px solid #f1f4f9;
+            vertical-align: middle;
+        }
+        .likert-table td:first-child {
+            text-align: left;
+            font-weight: 400;
+            color: #1e293b;
+            padding-left: 12px;
+            font-size: 14px;
+            border-right: 1px solid #e2e8f0;
+        }
+        .likert-table tbody tr.answered {
+            background: #f8fafc;
+        }
+        .likert-table tbody tr:hover {
+            background: #f1f5f9;
+        }
+
+        /* ===== RADIO STYLING ===== */
+        .likert-radio {
+            width: 18px;
+            height: 18px;
+            accent-color: #2563eb;
+            cursor: pointer;
+            margin: 0;
+            flex-shrink: 0;
+        }
+        .likert-radio:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
+        }
+
+        /* ===== SCALE LABELS ===== */
+        .scale-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .scale-labels span:first-child { text-align: left; }
+        .scale-labels span:last-child { text-align: right; }
+
+        /* ===== ERROR MESSAGE ===== */
+        .err-msg {
+            display: none;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #dc2626;
+            font-weight: 500;
+            align-items: center;
+            gap: 6px;
+        }
+        .q-card.has-error .err-msg {
+            display: flex;
+        }
+
+        /* ===== SARAN ===== */
+        .saran-wrap {
+            margin-top: 20px;
+            padding: 20px 24px;
+        }
+        .saran-wrap label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #0f172a;
+            display: block;
+            margin-bottom: 6px;
+        }
+        .saran-wrap textarea {
+            width: 100%;
+            padding: 12px 14px;
+            font-family: inherit;
+            font-size: 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            resize: vertical;
+            transition: border 0.2s;
+            background: white;
+        }
+        .saran-wrap textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        /* ===== SUBMIT ROW ===== */
+        .submit-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 16px 0 0 0;
+            border-top: 1px solid #e9edf2;
+        }
+        .btn-submit {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn-submit:hover {
+            background: #1d4ed8;
+        }
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-submit i { font-size: 14px; }
+        .btn-clear {
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .btn-clear:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        /* ===== SUCCESS CARD ===== */
+        .success-card {
+            display: none;
+            text-align: center;
+            padding: 48px 24px;
+            background: #f8fafc;
+            border-radius: 20px;
+            margin-top: 16px;
+        }
+        .success-card.show {
+            display: block;
+        }
+        .success-card .success-icon {
+            width: 72px;
+            height: 72px;
+            background: #d1fae5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 32px;
+            color: #059669;
+        }
+        .success-card h2 {
+            font-size: 22px;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+        .success-card p {
+            color: #64748b;
+            font-size: 15px;
+            margin-bottom: 20px;
+        }
+        .btn-back {
+            display: inline-block;
+            background: #2563eb;
+            color: white;
+            padding: 10px 28px;
+            border-radius: 100px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .btn-back:hover {
+            background: #1d4ed8;
+        }
+
+        /* ===== SKELETON ===== */
+        .skeleton {
+            background: #e9edf2;
+            border-radius: 8px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .skel-line { height: 14px; margin-bottom: 8px; }
+        .skel-radio-row {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+        }
+        .skel-radio {
+            width: 36px;
+            height: 18px;
+            border-radius: 4px;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 600px) {
+            .page-wrap { padding: 24px 16px; }
+            .title-card h1 { font-size: 20px; }
+            .q-card { padding: 16px; }
+            .likert-table th { font-size: 12px; min-width: 28px; padding: 6px 2px; }
+            .likert-table td { padding: 4px 2px; font-size: 13px; }
+            .likert-radio { width: 16px; height: 16px; }
+            .submit-row { flex-direction: column-reverse; align-items: stretch; }
+            .btn-submit { justify-content: center; }
+            .btn-clear { text-align: center; }
+        }
+        @media (max-width: 400px) {
+            .likert-table td:first-child { font-size: 12px; padding-left: 6px; }
+            .likert-table th { font-size: 10px; min-width: 22px; }
+        }
+    </style>
 </head>
 <body>
-    <div class="top-bar"></div>
-    <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
+<div class="page-wrap">
 
-    <div class="page-wrap">
+    <!-- ===== PROGRESS ===== -->
+    <div class="progress-wrap">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
 
-        <!-- Title card -->
-        <div class="gf-card title-card" id="titleCard">
-            <h1>Kuisioner Kepuasan Pelanggan</h1>
-            <p class="desc">
-                Bantu kami meningkatkan kualitas layanan dengan memberikan penilaian Anda.
-                Jawaban Anda sangat berarti dan bersifat rahasia.
-            </p>
-            <span class="org-tag">
-                <i class="fas fa-flask"></i>
-                UPTD Laboratorium Pengujian Bahan Konstruksi Bangunan
-            </span>
-        </div>
+    <!-- ===== TITLE ===== -->
+    <div class="title-card" id="titleCard">
+        <h1>Kuisioner Kepuasan Pelanggan</h1>
+        <p class="desc">
+            Bantu kami meningkatkan kualitas layanan dengan memberikan penilaian Anda.
+            Jawaban Anda sangat berarti dan bersifat rahasia.
+        </p>
+        <span class="org-tag"><i class="fas fa-flask"></i> UPTD Laboratorium Pengujian Bahan Konstruksi Bangunan</span>
+    </div>
 
-        <!-- Already filled -->
-        <div class="filled-banner" id="filledBanner">
-            <i class="fas fa-check-circle"></i>
-            <span>Anda sudah mengisi kuisioner ini sebelumnya. Terima kasih atas penilaian Anda!</span>
-        </div>
+    <!-- ===== FILLED BANNER ===== -->
+    <div class="filled-banner" id="filledBanner">
+        <i class="fas fa-check-circle"></i>
+        <span>Anda sudah mengisi kuisioner ini sebelumnya. Terima kasih atas penilaian Anda!</span>
+    </div>
 
-        <div class="required-note">
-            Skala penilaian: <em>1</em> = Sangat Tidak Puas &nbsp;·&nbsp; <em>5</em> = Sangat Puas &nbsp;·&nbsp; <em>*</em> Wajib diisi
-        </div>
+    <!-- ===== REQUIRED NOTE ===== -->
+    <div class="required-note" id="requiredNote">
+        <span>Skala penilaian: <em>1</em> = Sangat Tidak Puas &nbsp;·&nbsp; <em>5</em> = Sangat Puas</span>
+        <span><em>*</em> Wajib diisi</span>
+    </div>
 
-        <!-- Form -->
-        <form id="kuisionerForm" novalidate>
-            <!-- Questions injected here -->
-            <div id="questionsWrap">
-                <!-- Skeleton -->
-                <div class="gf-card q-card" id="skelCard">
-                    <div class="skeleton skel-line" style="width:30%;margin-bottom:6px"></div>
-                    <div class="skeleton skel-line" style="width:75%;margin-bottom:20px"></div>
-                    <div class="skel-radio-row">
-                        <div class="skel-radio skeleton"></div>
-                        <div class="skel-radio skeleton"></div>
-                        <div class="skel-radio skeleton"></div>
-                        <div class="skel-radio skeleton"></div>
-                        <div class="skel-radio skeleton"></div>
-                    </div>
+    <!-- ===== FORM ===== -->
+    <form id="kuisionerForm" novalidate>
+        <div id="questionsWrap">
+            <!-- Skeleton loading -->
+            <div class="q-card" id="skelCard">
+                <div class="skeleton skel-line" style="width:30%;margin-bottom:6px"></div>
+                <div class="skeleton skel-line" style="width:75%;margin-bottom:20px"></div>
+                <div class="skel-radio-row">
+                    <div class="skel-radio skeleton"></div>
+                    <div class="skel-radio skeleton"></div>
+                    <div class="skel-radio skeleton"></div>
+                    <div class="skel-radio skeleton"></div>
+                    <div class="skel-radio skeleton"></div>
                 </div>
             </div>
-
-            <!-- Saran -->
-            <div class="gf-card saran-wrap" id="saranCard" style="display:none">
-                <label for="saranTxt">Saran / Masukan <span style="color:#5f6368;font-weight:400;font-size:13px">(opsional)</span></label>
-                <textarea id="saranTxt" rows="3" placeholder="Tulis saran atau masukan untuk meningkatkan layanan kami..."></textarea>
-            </div>
-
-            <!-- Submit -->
-            <div class="gf-card submit-row" id="submitRow" style="display:none">
-                <button type="submit" class="btn-submit" id="submitBtn">
-                    <i class="fas fa-paper-plane"></i> Kirim
-                </button>
-                <button type="button" class="btn-clear" onclick="resetForm()">Hapus semua jawaban</button>
-            </div>
-        </form>
-
-        <!-- Success screen -->
-        <div class="gf-card success-card" id="successCard">
-            <div class="success-icon"><i class="fas fa-check"></i></div>
-            <h2>Terima Kasih!</h2>
-            <p>Penilaian Anda telah berhasil dikirim.<br>Sekarang Anda dapat mengunduh laporan hasil pengujian.</p>
-            <a href="javascript:history.back()" class="btn-back">
-                Kembali ke Riwayat
-            </a>
         </div>
 
-    </div><!-- /page-wrap -->
+        <!-- Saran -->
+        <div class="gf-card saran-wrap" id="saranCard" style="display:none">
+            <label for="saranTxt">Saran / Masukan <span style="color:#5f6368;font-weight:400;font-size:13px">(opsional)</span></label>
+            <textarea id="saranTxt" rows="3" placeholder="Tulis saran atau masukan untuk meningkatkan layanan kami..."></textarea>
+        </div>
 
-    <script>
-    (function() {
-        'use strict';
+        <!-- Submit -->
+        <div class="gf-card submit-row" id="submitRow" style="display:none">
+            <button type="submit" class="btn-submit" id="submitBtn">
+                <i class="fas fa-paper-plane"></i> Kirim
+            </button>
+            <button type="button" class="btn-clear" onclick="resetForm()">Hapus semua jawaban</button>
+        </div>
+    </form>
 
-        const API = 'http://localhost:5000/api';
-        const submissionId = (function() {
-            const parts = window.location.pathname.split('/');
-            return parts[parts.length - 1];
-        })();
+    <!-- ===== SUCCESS ===== -->
+    <div class="success-card" id="successCard">
+        <div class="success-icon"><i class="fas fa-check"></i></div>
+        <h2>Terima Kasih!</h2>
+        <p>Penilaian Anda telah berhasil dikirim.<br>Sekarang Anda dapat mengunduh laporan hasil pengujian.</p>
+        <a href="javascript:history.back()" class="btn-back">
+            Kembali ke Riwayat
+        </a>
+    </div>
 
-        let questions = [];
-        const answers  = {}; // { questionIndex: nilai }
+</div><!-- /page-wrap -->
 
-        // ─── INIT ──────────────────────────────────────────────
-        async function init() {
-            if (!submissionId || isNaN(Number(submissionId))) {
-                showError('Link kuisioner tidak valid.'); return;
-            }
-            try {
-                const res  = await fetch(API + '/kuisioner/public/questions');
-                const data = await res.json();
-                if (!data.success || !data.data || data.data.length === 0) {
-                    showError('Pertanyaan kuisioner belum tersedia.'); return;
-                }
-                questions = data.data;
-                renderQuestions();
-                document.getElementById('saranCard').style.display  = '';
-                document.getElementById('submitRow').style.display  = '';
+<script>
+(function() {
+    'use strict';
 
-            } catch(e) {
-                showError('Gagal memuat kuisioner: ' + e.message);
-            }
+    const API = 'http://localhost:5000/api';
+    const submissionId = (function() {
+        const parts = window.location.pathname.split('/');
+        return parts[parts.length - 1];
+    })();
+
+    let questions = [];
+    const answers = {};
+
+    // ─── INIT ──────────────────────────────────────────────────
+    async function init() {
+        if (!submissionId || isNaN(Number(submissionId))) {
+            showError('Link kuisioner tidak valid.');
+            return;
         }
 
-        // ─── RENDER ────────────────────────────────────────────
-        function renderQuestions() {
-            const wrap = document.getElementById('questionsWrap');
-            wrap.innerHTML = '';
+        try {
+            // 1. Cek apakah kuisioner sudah diisi
+            const checkRes = await fetch(`${API}/kuisioner/check/${submissionId}`);
+            const checkData = await checkRes.json();
 
-            questions.forEach(function(q, idx) {
-                const n = idx + 1; // 1-based
-                const card = document.createElement('div');
-                card.className = 'gf-card q-card';
-                card.id = 'qcard-' + n;
+            if (checkData.success && checkData.exists) {
+                // Sudah diisi → tampilkan banner, sembunyikan form
+                document.getElementById('filledBanner').classList.add('show');
+                document.getElementById('kuisionerForm').style.display = 'none';
+                document.getElementById('requiredNote').style.display = 'none';
+                document.getElementById('titleCard').style.display = 'none';
+                return;
+            }
 
-                // Build radio cells for 1–5
-                let thCells = '<th></th>';
-                let tdCells = '<td>' + q.question_text + '</td>';
+            // 2. Belum diisi → muat pertanyaan
+            const qRes = await fetch(API + '/kuisioner/public/questions');
+            const qData = await qRes.json();
 
-                for (let v = 1; v <= 5; v++) {
-                    thCells += '<th>' + v + '</th>';
-                    tdCells += '<td><input type="radio" class="likert-radio" name="q' + n + '" value="' + v + '" id="q' + n + '_v' + v + '"></td>';
-                }
+            if (!qData.success || !qData.data || qData.data.length === 0) {
+                showError('Pertanyaan kuisioner belum tersedia.');
+                return;
+            }
 
-                card.innerHTML =
-                    '<div class="q-num">Pertanyaan ' + n + ' dari ' + questions.length + '</div>' +
-                    '<div class="q-text">' + q.question_text + '<span class="req">*</span></div>' +
-                    '<div style="overflow-x:auto">' +
-                    '<table class="likert-table">' +
-                      '<thead><tr>' + thCells + '</tr></thead>' +
-                      '<tbody><tr id="qrow-' + n + '">' + tdCells + '</tr></tbody>' +
-                    '</table>' +
-                    '</div>' +
-                    '<div class="scale-labels">' +
-                      '<span>Sangat Tidak Puas</span>' +
-                      '<span>Sangat Puas</span>' +
-                    '</div>' +
-                    '<div class="err-msg"><i class="fas fa-exclamation-circle"></i> Pertanyaan ini wajib dijawab</div>';
+            questions = qData.data;
+            renderQuestions();
+            document.getElementById('saranCard').style.display = '';
+            document.getElementById('submitRow').style.display = '';
 
-                // Event on radio change
-                card.querySelectorAll('.likert-radio').forEach(function(radio) {
-                    radio.addEventListener('change', function() {
-                        answers[n] = parseInt(radio.value, 10);
-                        // Remove error
-                        card.classList.remove('has-error');
-                        // Highlight row
-                        const row = document.getElementById('qrow-' + n);
-                        if (row) row.classList.add('answered');
-                        updateProgress();
-                    });
+        } catch (e) {
+            showError('Gagal memuat kuisioner: ' + e.message);
+        }
+    }
+
+    // ─── RENDER ──────────────────────────────────────────────
+    function renderQuestions() {
+        const wrap = document.getElementById('questionsWrap');
+        wrap.innerHTML = '';
+
+        questions.forEach(function(q, idx) {
+            const n = idx + 1;
+            const card = document.createElement('div');
+            card.className = 'q-card';
+            card.id = 'qcard-' + n;
+
+            let thCells = '<th></th>';
+            let tdCells = '<td>' + q.question_text + '</td>';
+
+            for (let v = 1; v <= 5; v++) {
+                thCells += '<th>' + v + '</th>';
+                tdCells += '<td><input type="radio" class="likert-radio" name="q' + n + '" value="' + v + '" id="q' + n + '_v' + v + '"></td>';
+            }
+
+            card.innerHTML =
+                '<div class="q-num">Pertanyaan ' + n + ' dari ' + questions.length + '</div>' +
+                '<div class="q-text">' + q.question_text + '<span class="req">*</span></div>' +
+                '<div style="overflow-x:auto">' +
+                '<table class="likert-table">' +
+                  '<thead><tr>' + thCells + '</tr></thead>' +
+                  '<tbody><tr id="qrow-' + n + '">' + tdCells + '</tr></tbody>' +
+                '</table>' +
+                '</div>' +
+                '<div class="scale-labels">' +
+                  '<span>Sangat Tidak Puas</span>' +
+                  '<span>Sangat Puas</span>' +
+                '</div>' +
+                '<div class="err-msg"><i class="fas fa-exclamation-circle"></i> Pertanyaan ini wajib dijawab</div>';
+
+            // Radio change
+            card.querySelectorAll('.likert-radio').forEach(function(radio) {
+                radio.addEventListener('change', function() {
+                    answers[n] = parseInt(radio.value, 10);
+                    card.classList.remove('has-error');
+                    const row = document.getElementById('qrow-' + n);
+                    if (row) row.classList.add('answered');
+                    updateProgress();
                 });
-
-                card.addEventListener('focusin', function() {
-                    document.querySelectorAll('.q-card.focused').forEach(function(c) { c.classList.remove('focused'); });
-                    card.classList.add('focused');
-                });
-
-                wrap.appendChild(card);
             });
-        }
 
-        // ─── PROGRESS ──────────────────────────────────────────
-        function updateProgress() {
-            const total    = questions.length;
-            const answered = Object.keys(answers).length;
-            const pct      = total > 0 ? Math.round((answered / total) * 100) : 0;
-            document.getElementById('progressFill').style.width = pct + '%';
-        }
+            card.addEventListener('focusin', function() {
+                document.querySelectorAll('.q-card.focused').forEach(function(c) { c.classList.remove('focused'); });
+                card.classList.add('focused');
+            });
 
-        // ─── RESET ─────────────────────────────────────────────
-        window.resetForm = function() {
-            if (!confirm('Hapus semua jawaban?')) return;
-            Object.keys(answers).forEach(function(k) { delete answers[k]; });
-            document.querySelectorAll('.likert-radio').forEach(function(r) { r.checked = false; });
-            document.querySelectorAll('.qrow-answered, tr.answered').forEach(function(r) { r.classList.remove('answered'); });
-            document.querySelectorAll('.q-card.has-error').forEach(function(c) { c.classList.remove('has-error'); });
-            document.getElementById('saranTxt').value = '';
-            updateProgress();
+            wrap.appendChild(card);
+        });
+    }
+
+    // ─── PROGRESS ────────────────────────────────────────────
+    function updateProgress() {
+        const total = questions.length;
+        const answered = Object.keys(answers).length;
+        const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
+        document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    // ─── RESET ────────────────────────────────────────────────
+    window.resetForm = function() {
+        if (!confirm('Hapus semua jawaban?')) return;
+        Object.keys(answers).forEach(function(k) { delete answers[k]; });
+        document.querySelectorAll('.likert-radio').forEach(function(r) { r.checked = false; });
+        document.querySelectorAll('.q-card.has-error').forEach(function(c) { c.classList.remove('has-error'); });
+        document.getElementById('saranTxt').value = '';
+        updateProgress();
+    };
+
+    // ─── VALIDATE ─────────────────────────────────────────────
+    function validate() {
+        let firstError = null;
+        questions.forEach(function(q, idx) {
+            const n = idx + 1;
+            const card = document.getElementById('qcard-' + n);
+            if (!answers[n]) {
+                card.classList.add('has-error');
+                if (!firstError) firstError = card;
+            } else {
+                card.classList.remove('has-error');
+            }
+        });
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
+        return true;
+    }
+
+    // ─── SUBMIT ───────────────────────────────────────────────
+    document.getElementById('kuisionerForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        if (!validate()) return;
+
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
+
+        const answersArr = questions.map(function(q, idx) {
+            return { question_index: idx + 1, nilai: answers[idx + 1] || null };
+        });
+
+        const payload = {
+            submission_id: parseInt(submissionId, 10),
+            answers: answersArr,
+            saran: (document.getElementById('saranTxt').value || '').trim() || null
         };
 
-        // ─── VALIDATE ──────────────────────────────────────────
-        function validate() {
-            let firstError = null;
-            questions.forEach(function(q, idx) {
-                const n    = idx + 1;
-                const card = document.getElementById('qcard-' + n);
-                if (!answers[n]) {
-                    card.classList.add('has-error');
-                    if (!firstError) firstError = card;
-                } else {
-                    card.classList.remove('has-error');
-                }
+        try {
+            const res = await fetch(API + '/kuisioner/public/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
-            if (firstError) {
-                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                return false;
-            }
-            return true;
-        }
+            const result = await res.json();
 
-        // ─── SUBMIT ────────────────────────────────────────────
-        document.getElementById('kuisionerForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            if (!validate()) return;
-
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
-
-            const answersArr = questions.map(function(q, idx) {
-                return { question_index: idx + 1, nilai: answers[idx + 1] || null };
-            });
-
-            const payload = {
-                submission_id: parseInt(submissionId, 10),
-                answers:       answersArr,
-                saran:         (document.getElementById('saranTxt').value || '').trim() || null
-            };
-
-            try {
-                const res    = await fetch(API + '/kuisioner/public/submit', {
-                    method:  'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body:    JSON.stringify(payload)
+            if (result.success) {
+                // Sembunyikan semua, tampilkan success
+                ['titleCard', 'kuisionerForm', 'requiredNote'].forEach(function(id) {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
                 });
-                const result = await res.json();
-
-                if (result.success) {
-                    // Hide everything, show success
-                    ['titleCard', 'kuisionerForm'].forEach(function(id) {
-                        var el = document.getElementById(id);
-                        if (el) el.style.display = 'none';
-                    });
-                    document.querySelectorAll('.required-note, .filled-banner').forEach(function(el) { el.style.display = 'none'; });
-                    const sc = document.getElementById('successCard');
-                    sc.classList.add('show');
-                    sc.scrollIntoView({ behavior: 'smooth' });
-
-                } else if (result.message && result.message.toLowerCase().includes('sudah')) {
-                    document.getElementById('filledBanner').classList.add('show');
-                    document.getElementById('kuisionerForm').style.display = 'none';
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-                } else {
-                    alert('Gagal mengirim: ' + (result.message || 'Terjadi kesalahan'));
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Kirim';
-                }
-            } catch(err) {
-                alert('Gagal mengirim: ' + err.message);
+                document.querySelectorAll('.filled-banner').forEach(function(el) { el.style.display = 'none'; });
+                const sc = document.getElementById('successCard');
+                sc.classList.add('show');
+                sc.scrollIntoView({ behavior: 'smooth' });
+            } else if (result.message && result.message.toLowerCase().includes('sudah')) {
+                document.getElementById('filledBanner').classList.add('show');
+                document.getElementById('kuisionerForm').style.display = 'none';
+                document.getElementById('requiredNote').style.display = 'none';
+                document.getElementById('titleCard').style.display = 'none';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                alert('Gagal mengirim: ' + (result.message || 'Terjadi kesalahan'));
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-paper-plane"></i> Kirim';
             }
-        });
-
-        // ─── ERROR HELPER ──────────────────────────────────────
-        function showError(msg) {
-            document.getElementById('questionsWrap').innerHTML =
-                '<div class="gf-card q-card" style="text-align:center;padding:40px 24px">' +
-                '<i class="fas fa-exclamation-triangle" style="font-size:36px;color:#f9ab00;margin-bottom:14px;display:block"></i>' +
-                '<p style="color:#5f6368;font-size:15px">' + msg + '</p></div>';
-            document.getElementById('saranCard').style.display = 'none';
-            document.getElementById('submitRow').style.display = 'none';
+        } catch (err) {
+            alert('Gagal mengirim: ' + err.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Kirim';
         }
+    });
 
-        init();
-    })();
-    </script>
+    // ─── ERROR HELPER ─────────────────────────────────────────
+    function showError(msg) {
+        document.getElementById('questionsWrap').innerHTML =
+            '<div class="q-card" style="text-align:center;padding:40px 24px">' +
+            '<i class="fas fa-exclamation-triangle" style="font-size:36px;color:#f9ab00;margin-bottom:14px;display:block"></i>' +
+            '<p style="color:#5f6368;font-size:15px">' + msg + '</p></div>';
+        document.getElementById('saranCard').style.display = 'none';
+        document.getElementById('submitRow').style.display = 'none';
+    }
+
+    init();
+})();
+</script>
+
 </body>
 </html>

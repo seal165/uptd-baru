@@ -2,7 +2,97 @@
 <html lang="id">
 <head>
     <%- include('partials/head') %>
-    
+    <style>
+        /* Perbaikan input di halaman Settings agar terlihat */
+        #settingsContent .input-group input,
+        #settingsContent .input-group select,
+        #settingsContent .input-group textarea {
+            width: 100% !important;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            display: block !important;
+        }
+
+        #security-section .input-group input[type="password"],
+        #security-section .input-group input[type="text"],
+        #security-section .input-group input[type="email"] {
+            background: white !important;
+            color: #1e293b !important;
+            padding: 10px 14px !important;
+            border: 1.5px solid #d1d5db !important;
+            border-radius: 8px 0 0 8px !important;
+            font-size: 14px !important;
+            height: auto !important;
+            width: 100% !important;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+        }
+
+        #security-section .input-group .btn-outline-secondary {
+            border-radius: 0 8px 8px 0 !important;
+            background: #f1f5f9 !important;
+            border: 1.5px solid #d1d5db !important;
+            border-left: none !important;
+            color: #1e293b !important;
+            padding: 10px 14px !important;
+        }
+
+        #security-section .input-group .btn-outline-secondary:hover {
+            background: #e2e8f0 !important;
+        }
+
+        #security-section .form-label {
+            font-weight: 600 !important;
+            color: #1e293b !important;
+            margin-bottom: 4px !important;
+            font-size: 14px !important;
+            display: block !important;
+        }
+
+        #security-section .password-strength {
+            width: 100% !important;
+            height: 5px !important;
+            border-radius: 4px !important;
+            background: #e2e8f0 !important;
+            transition: background 0.3s !important;
+            margin-top: 6px !important;
+        }
+
+        #security-section #passwordHint,
+        #security-section #passwordMatchHint {
+            font-size: 12px !important;
+            color: #64748b !important;
+            margin-top: 4px !important;
+            display: block !important;
+        }
+
+        #security-section .btn-primary {
+            background-color: #2563eb !important;
+            border-color: #2563eb !important;
+            font-weight: 600 !important;
+            padding: 10px 30px !important;
+            border-radius: 8px !important;
+            transition: all 0.2s !important;
+        }
+
+        #security-section .btn-primary:hover {
+            background-color: #1d4ed8 !important;
+            border-color: #1d4ed8 !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(37,99,235,0.25) !important;
+        }
+
+        @media (max-width: 768px) {
+            #security-section .row.g-3 {
+                flex-direction: column !important;
+            }
+            #security-section .col-md-6 {
+                width: 100% !important;
+                flex: 0 0 100% !important;
+                max-width: 100% !important;
+            }
+        }
+    </style>
 </head>
 <body>
     
@@ -140,7 +230,7 @@
                                 <label class="form-label fw-bold text-muted">Password Saat Ini</label>
                                 <div class="input-group">
                                     <input type="password" class="form-control bg-white" id="currentPassword" 
-                                        placeholder="Masukkan password lama..." required>
+                                        placeholder="Masukkan password lama..." required style="width:100%;">
                                     <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('currentPassword')">
                                         <i class="far fa-eye"></i>
                                     </button>

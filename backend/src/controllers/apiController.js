@@ -2802,6 +2802,24 @@ const apiController = {
 
     // ==================== KUISIONER METHODS ====================
 
+    // ==================== CHECK KUIISIONER ====================
+    checkKuisioner: async (req, res) => {
+        try {
+            const submissionId = req.params.submissionId;
+            const [rows] = await db.query(
+                'SELECT id, created_at FROM kuisioner WHERE submission_id = ?',
+                [submissionId]
+            );
+            res.json({
+                success: true,
+                exists: rows.length > 0,
+                data: rows.length > 0 ? rows[0] : null
+            });
+        } catch (error) {
+            res.status(500).json({ success: false, message: error.message });
+        }
+    },
+
     // GET all kuisioner (public/user) - JANGAN DIHAPUS
     getKuisioner: async (req, res) => {
         try {

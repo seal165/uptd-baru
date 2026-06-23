@@ -74,6 +74,7 @@ router.get('/skrd/:id/download-skrd', authMiddleware, apiController.downloadSkrd
 
 // ==================== KUISIONER API ====================
 // PENTING: URUTKAN DARI YANG PALING SPESIFIK
+router.get('/kuisioner/check/:submissionId', apiController.checkKuisioner);
 
 // PUBLIC ROUTES (tanpa auth - untuk halaman kuisioner user)
 router.get('/kuisioner/public/questions', apiController.getKuisionerQuestions); // public

@@ -293,14 +293,6 @@ III. **KAJI ULANG PERMINTAAN**
                 document.getElementById('scanKTPActions').innerHTML = '';
             }
             
-            // Dokumen Tambahan (placeholder)
-            document.getElementById('additionalDocCount').textContent = '0 dokumen';
-            document.getElementById('additionalDocumentsList').innerHTML = `
-                <div class="text-center py-3 text-muted">
-                    <i class="far fa-folder-open fa-2x mb-2"></i>
-                    <p class="small mb-0">Tidak ada dokumen tambahan</p>
-                </div>
-            `;
             
         } catch (error) {
             console.error('Error loading documents:', error);
@@ -592,60 +584,120 @@ III. **KAJI ULANG PERMINTAAN**
 
         const k = data.kuisioner;
 
-        // Daftar pertanyaan (default, bisa disesuaikan dengan database)
-        const questions = [
-            'Kemudahan dalam pelayanan pelanggan',
-            'Kemudahan informasi tentang sistem, mekanisme, dan prosedur pelayanan pengujian',
-            'Ketepatan waktu pelayanan pengujian',
-            'Biaya pengujian yang kompetitif',
-            'Kualitas dan mutu layanan sesuai ketentuan',
-            'Tenaga teknis yang handal, berpengalaman, dan bersertifikasi',
-            'Keramahan pelayanan petugas',
-            'Kecepatan tanggapan dan tindak lanjut terhadap keluhan',
-            'Kenyamanan dan kebersihan lingkungan',
-            'Dukungan peralatan yang memadai, terpelihara serta mutakhir'
-        ];
-
-        // Kumpulkan skor
-        const scores = [];
-        for (let i = 1; i <= 10; i++) {
-            const key = `skor_${i}`;
-            scores.push(k[key] || 0);
+        // Parse jawaban_json dan pertanyaan_json
+        let jawaban = {};
+        let pertanyaan = [];
+        try {
+            if (typeof k.jawaban_json === 'string') {
+                jawaban = JSON.parse(k.jawaban_json);
+            } else if (k.jawaban_json && typeof k.jawaban_json === 'object') {
+                jawaban = k.jawaban_json;
+            }
+        } catch (e) {
+            jawaban = {};
         }
+        try {
+            if (typeof k.pertanyaan_json === 'string') {
+                pertanyaan = JSON.parse(k.pertanyaan_json);
+            } else if (k.pertanyaan_json && typeof k.pertanyaan_json === 'object') {
+                pertanyaan = k.pertanyaan_json;
+            }
+        } catch (e) {
+            pertanyaan = [];
+        }
+
+        // Jika pertanyaan kosong, fallback ke daftar default (jika ada skor_*)
+        if (pertanyaan.length === 0) {
+            // Coba ambil dari skor_* (untuk kompatibilitas data lama)
+            const defaultQuestions = [
+                'Kemudahan dalam pelayanan pelanggan',
+                'Kemudahan informasi tentang sistem, mekanisme, dan prosedur pelayanan pengujian',
+                'Ketepatan waktu pelayanan pengujian',
+                'Biaya pengujian yang kompetitif',
+                'Kualitas dan mutu layanan sesuai ketentuan',
+                'Tenaga teknis yang handal, berpengalaman, dan bersertifikasi',
+                'Keramahan pelayanan petugas',
+                'Kecepatan tanggapan dan tindak lanjut terhadap keluhan',
+                'Kenyamanan dan kebersihan lingkungan',
+                'Dukungan peralatan yang memadai, terpelihara serta mutakhir'
+            ];
+            pertanyaan = defaultQuestions;
+            // Buat jawaban dari skor_* jika ada
+            if (k.skor_1 !== undefined) {
+                for (let i = 1; i <= 10; i++) {
+                    const key = `skor_${i}`;
+                    if (k[key] !== null && k[key] !== undefined) {
+                        jawaban[String(i)] = parseInt(k[key]);
+                    }
+                }
+            }
+        }
+
+        // Siapkan daftar skor sesuai urutan pertanyaan
+        const keys = Object.keys(jawaban).sort((a, b) => parseInt(a) - parseInt(b));
+        const skorList = pertanyaan.map((_, idx) => {
+            const key = keys[idx] || String(idx + 1);
+            return jawaban[key] || null;
+        });
+
+        // Hitung total dan rata-rata
+        const validSkor = skorList.filter(v => v !== null && !isNaN(v) && v >= 1 && v <= 5);
+        const totalNilai = validSkor.reduce((a, b) => a + b, 0);
+        const rataRata = validSkor.length > 0 ? (totalNilai / validSkor.length).toFixed(1) : '0.0';
+        const maxSkor = validSkor.length * 5;
 
         // Buat HTML tabel
         let html = `
-            <div class="card-custom mt-3" id="kuisionerDetailBlock" style="border-top: 3px solid #198754;">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="bg-success-subtle p-2 rounded me-2 text-success">
-                        <i class="fas fa-star"></i>
+            <div class="card-custom mt-3 border-0 shadow-sm" id="kuisionerDetailBlock" style="border-top: 3px solid #198754 !important;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-success-subtle p-2 rounded me-2 text-success">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <h6 class="fw-bold m-0">Detail Hasil Kuisioner</h6>
+                        <span class="badge bg-success ms-2">Diisi: ${formatDate(k.created_at)}</span>
                     </div>
-                    <h6 class="fw-bold m-0">Detail Hasil Kuisioner</h6>
-                    <span class="badge bg-success ms-auto">Diisi: ${formatDate(k.created_at)}</span>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleKuisionerDetail()">
+                        <i class="fas fa-chevron-up" id="kuisionerToggleIcon"></i>
+                    </button>
                 </div>
-
-                <div class="table-responsive">
-                    <table class="table table-bordered table-sm">
-                        <thead class="bg-light">
-                            <tr>
-                                <th style="width: 5%;">No</th>
-                                <th>Pertanyaan</th>
-                                <th style="width: 20%;" class="text-center">Skor (1-5)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                <div id="kuisionerDetailBody">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="bg-light p-2 rounded">
+                                <span class="text-muted small">Total Skor</span>
+                                <div class="fw-bold fs-5">${totalNilai} / ${maxSkor}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-light p-2 rounded">
+                                <span class="text-muted small">Rata-rata</span>
+                                <div class="fw-bold fs-5">${rataRata}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th style="width: 5%;">No</th>
+                                    <th>Pertanyaan</th>
+                                    <th style="width: 20%;" class="text-center">Skor (1-5)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
         `;
 
-        questions.forEach((q, index) => {
-            const score = scores[index] || 0;
-            const stars = '★'.repeat(score) + '☆'.repeat(5 - score);
-            const color = score >= 4 ? 'success' : score >= 3 ? 'warning' : 'danger';
+        pertanyaan.forEach((qText, idx) => {
+            const nilai = skorList[idx] || 0;
+            const stars = '★'.repeat(nilai) + '☆'.repeat(5 - nilai);
+            const color = nilai >= 4 ? 'success' : nilai >= 3 ? 'warning' : 'danger';
             html += `
                 <tr>
-                    <td class="text-center">${index + 1}</td>
-                    <td>${q}</td>
+                    <td class="text-center">${idx + 1}</td>
+                    <td>${escapeHtml(qText)}</td>
                     <td class="text-center">
-                        <span class="badge bg-${color}">${score}</span>
+                        <span class="badge bg-${color}">${nilai}</span>
                         <small class="text-muted ms-1">${stars}</small>
                     </td>
                 </tr>
@@ -653,9 +705,9 @@ III. **KAJI ULANG PERMINTAAN**
         });
 
         html += `
-                        </tbody>
-                    </table>
-                </div>
+                            </tbody>
+                        </table>
+                    </div>
         `;
 
         // Tampilkan saran jika ada
@@ -668,14 +720,13 @@ III. **KAJI ULANG PERMINTAAN**
             `;
         }
 
-        html += `</div>`;
+        html += `</div></div>`;
 
         // Sisipkan setelah status block atau sebelum timeline
         const statusBlock = document.getElementById('kuisionerStatusBlock');
         if (statusBlock) {
             statusBlock.insertAdjacentHTML('afterend', html);
         } else {
-            // Jika status block tidak ada (misal laporan belum diupload), cari tempat lain
             const timeline = document.getElementById('statusTimeline');
             if (timeline) {
                 const parent = timeline.closest('.card-custom');
@@ -684,6 +735,21 @@ III. **KAJI ULANG PERMINTAAN**
                 }
             }
         }
+
+        // Fungsi toggle (global) untuk menyembunyikan/menampilkan detail
+        window.toggleKuisionerDetail = function() {
+            const body = document.getElementById('kuisionerDetailBody');
+            const icon = document.getElementById('kuisionerToggleIcon');
+            if (body && icon) {
+                if (body.style.display === 'none') {
+                    body.style.display = '';
+                    icon.className = 'fas fa-chevron-up';
+                } else {
+                    body.style.display = 'none';
+                    icon.className = 'fas fa-chevron-down';
+                }
+            }
+        };
     }
 
     function updateItemsTable(items) {

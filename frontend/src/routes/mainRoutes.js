@@ -121,13 +121,14 @@ router.get('/user/profile', authMiddleware.verifyUserAccess, pageController.user
 router.post('/user/profile', authMiddleware.verifyUserAccess, pageController.updateProfile);
 
 // ==================== HALAMAN KHUSUS (PUBLIC) ====================
-router.get('/kuisioner/:submissionId', (req, res) => {
-    res.render('kuisioner', {
-        title: 'Kuisioner Kepuasan - UPTD Laboratorium',
-        submissionId: req.params.submissionId,
-        layout: false
-    });
-});
+// router.get('/kuisioner/:submissionId', (req, res) => {
+//     res.render('kuisioner', {
+//         title: 'Kuisioner Kepuasan - UPTD Laboratorium',
+//         submissionId: req.params.submissionId,
+//         layout: false
+//     });
+// });
+router.get('/kuisioner/:submissionId', pageController.publicKuisioner);
 
 router.get('/track/:no_urut', async (req, res) => {
     try {
