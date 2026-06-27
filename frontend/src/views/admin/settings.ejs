@@ -7,10 +7,8 @@
         #settingsContent .input-group input,
         #settingsContent .input-group select,
         #settingsContent .input-group textarea {
-            width: 100% !important;
             flex: 1 1 auto !important;
             min-width: 0 !important;
-            display: block !important;
         }
 
         #security-section .input-group input[type="password"],
@@ -23,7 +21,6 @@
             border-radius: 8px 0 0 8px !important;
             font-size: 14px !important;
             height: auto !important;
-            width: 100% !important;
             flex: 1 1 auto !important;
             min-width: 0 !important;
         }
@@ -230,7 +227,7 @@
                                 <label class="form-label fw-bold text-muted">Password Saat Ini</label>
                                 <div class="input-group">
                                     <input type="password" class="form-control bg-white" id="currentPassword" 
-                                        placeholder="Masukkan password lama..." required style="width:100%;">
+                                        placeholder="Masukkan password lama..." required>
                                     <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('currentPassword')">
                                         <i class="far fa-eye"></i>
                                     </button>
