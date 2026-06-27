@@ -5480,9 +5480,7 @@ const apiController = {
                             tanggal_mulai DATE NOT NULL,
                             tanggal_selesai DATE NOT NULL,
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                            created_at INT,
-                            updated_at INT
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                     `);
                 }
@@ -5491,9 +5489,9 @@ const apiController = {
             // Insert periode
             const [result] = await db.query(
                 `INSERT INTO jadwal_sibuk 
-                (keterangan, tanggal_mulai, tanggal_selesai, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?)`,
-                [keterangan, tanggal_mulai, tanggal_selesai, userId, userId]
+                (keterangan, tanggal_mulai, tanggal_selesai) 
+                VALUES (?, ?, ?)`,
+                [keterangan, tanggal_mulai, tanggal_selesai]
             );
             
             // Catat aktivitas
@@ -5550,9 +5548,9 @@ const apiController = {
             // Update periode
             const [result] = await db.query(
                 `UPDATE jadwal_sibuk 
-                SET keterangan = ?, tanggal_mulai = ?, tanggal_selesai = ?, updated_by = ? 
+                SET keterangan = ?, tanggal_mulai = ?, tanggal_selesai = ? 
                 WHERE id = ?`,
-                [keterangan, tanggal_mulai, tanggal_selesai, userId, id]
+                [keterangan, tanggal_mulai, tanggal_selesai, id]
             );
             
             if (result.affectedRows === 0) {
