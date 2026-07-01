@@ -1,7 +1,7 @@
 {
-  "name": "frontend",
-  "version": "1.0.0",
-  "description": "Frontend EJS untuk UPTD Lab",
+  "name": "uptd-lab-frontend",
+  "version": "2.0.0",
+  "description": "Frontend EJS UPTD Lab Pengujian - restructured & secure",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,15 +9,20 @@
   },
   "dependencies": {
     "axios": "^1.13.6",
-    "bcrypt": "^6.0.0",
     "body-parser": "^2.2.2",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
     "ejs": "^3.1.9",
     "express": "^4.22.1",
+    "express-rate-limit": "^7.4.0",
     "express-session": "^1.19.0",
-    "jsdom": "^29.1.1",
+    "form-data": "^4.0.0",
+    "helmet": "^7.1.0",
     "multer": "^1.4.5-lts.1",
-    "mysql2": "^3.17.5"
+    "mysql2": "^3.17.5",
+    "winston": "^3.13.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

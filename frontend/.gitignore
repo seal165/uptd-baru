@@ -1,2 +1,27 @@
+# Dependencies
 node_modules/
+
+# Env
 .env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Uploads (file user temporary)
+public/uploads/
+uploads/
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+
+# OS
+Thumbs.db
+
+# Backup
+*.bak

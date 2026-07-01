@@ -87,7 +87,7 @@ model services {
   id                 Int                  @id @default(autoincrement())
   category_id        Int
   test_type_id       Int
-  service_name       String               @db.VarChar(255)
+  name               String               @db.VarChar(255)
   min_sample         String?              @db.VarChar(100)
   satuan             String?              @default("sample") @db.VarChar(50)
   duration_days      Int?
@@ -175,7 +175,7 @@ model submissions {
 model test_categories {
   id                 Int                  @id @default(autoincrement())
   test_type_id       Int
-  category_name      String               @db.VarChar(100)
+  name               String               @db.VarChar(255)
   created_at         DateTime?            @default(now()) @db.Timestamp(0)
   services           services[]
   submission_samples submission_samples[]
@@ -197,7 +197,7 @@ model test_reports {
 
 model test_types {
   id                 Int                  @id @default(autoincrement())
-  type_name          String               @db.VarChar(100)
+  name               String               @db.VarChar(255)
   created_at         DateTime?            @default(now()) @db.Timestamp(0)
   services           services[]
   submission_samples submission_samples[]

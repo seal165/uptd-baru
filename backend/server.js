@@ -1,72 +1,93 @@
-// backend/server.js
+/**
+ * Entry point backend UPTD Lab Pengujian.
+ * Setup middleware security, mount route, start server.
+ */
+require('./src/config/env'); // validasi env paling awal
+
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const compression = require('compression');
+const hpp = require('hpp');
+const cookieParser = require('cookie-parser');
 const path = require('path');
-const fs = require('fs');
+
+const env = require('./src/config/env');
+const logger = require('./src/utils/logger');
+const apiRoutes = require('./src/routes');
+const { globalLimiter } = require('./src/middlewares/rateLimitMiddleware');
+const { notFound, errorHandler } = require('./src/middlewares/errorMiddleware');
+
 const app = express();
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Trust proxy (penting saat dibalik nginx/cloudflare)
+app.set('trust proxy', 1);
 
-// CORS
-app.use(cors({
-    origin: 'http://localhost:3000',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// Security headers
+app.use(
+    helmet({
+        contentSecurityPolicy: false,
+        crossOriginResourcePolicy: { policy: 'cross-origin' }
+    })
+);
 
-// Static files - SERVE LANGSUNG TANPA TOKEN DULU UNTUK TESTING
-app.use('/uploads', (req, res, next) => {
-    console.log('📁 Request untuk file:', req.url);
-    
-    // Cek apakah file benar-benar ada
-    const filePath = path.join(__dirname, 'uploads', req.url);
-    console.log('📁 Full path:', filePath);
-    
-    if (fs.existsSync(filePath)) {
-        console.log('✅ File DITEMUKAN!');
-        // Log info file
-        const stats = fs.statSync(filePath);
-        console.log('📁 Ukuran file:', stats.size, 'bytes');
-        console.log('📁 Permission:', stats.mode.toString(8));
-    } else {
-        console.log('❌ File TIDAK DITEMUKAN!');
-    }
-    
-    next();
-}, express.static(path.join(__dirname, 'uploads')));
+// CORS whitelist dari env
+app.use(
+    cors({
+        origin: (origin, cb) => {
+            if (!origin || env.CORS_ORIGINS.includes(origin)) return cb(null, true);
+            return cb(new Error('CORS: Origin tidak diizinkan'));
+        },
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization']
+    })
+);
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Body parser dengan limit (cegah payload bomb)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
 
-// Routes
-const apiRoutes = require('./src/routes/api');
+// Anti HTTP Parameter Pollution
+app.use(hpp());
+
+// Compression response
+app.use(compression());
+
+// Rate limit di semua route /api
+app.use('/api', globalLimiter);
+
+// Health check
+app.get('/', (_req, res) => {
+    res.json({ status: 'ok', service: 'UPTD Lab Pengujian API', version: '2.0.0' });
+});
+
+// API routes
 app.use('/api', apiRoutes);
 
-// Test route
-app.get('/', (req, res) => {
-    res.json({ message: 'Backend API is running' });
+// Avatar publik (gampang ditampilkan di UI tanpa token).
+// File sensitif (KTP, surat, dll) akses via /api/files/* yang ada auth-nya.
+app.use('/uploads/avatar', express.static(path.join(__dirname, 'uploads/avatar')));
+
+// 404 + Global error handler (PALING BAWAH)
+app.use(notFound);
+app.use(errorHandler);
+
+// Start server
+const server = app.listen(env.PORT, () => {
+    logger.info(`Server running on port ${env.PORT} [${env.NODE_ENV}]`);
 });
 
-// 404 handler
-app.use((req, res) => {
-    res.status(404).json({ success: false, message: 'Endpoint tidak ditemukan' });
+// Graceful shutdown
+process.on('unhandledRejection', (err) => {
+    logger.error('Unhandled Rejection: ' + err.message);
+    server.close(() => process.exit(1));
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
+process.on('SIGTERM', () => {
+    logger.info('SIGTERM received, closing server');
+    server.close(() => process.exit(0));
 });
 
-const PORT = 5000;
-app.listen(PORT, () => {
-    console.log(`=================================`);
-    console.log(`🚀 BACKEND SERVER`);
-    console.log(`=================================`);
-    console.log(`Port: ${PORT}`);
-    console.log(`URL: http://localhost:${PORT}`);
-    console.log(`Uploads: http://localhost:${PORT}/uploads`);
-    console.log(`=================================`);
-});
+module.exports = app;
