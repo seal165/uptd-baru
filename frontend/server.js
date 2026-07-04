@@ -1,83 +1,74 @@
-/**
- * Frontend Entry Point — UPTD Lab Pengujian.
- * Express + EJS dengan security (helmet, secure session, rate limit, env validation).
- */
-require('./src/config/env'); // validasi env paling awal
-
+// server.js
+require('dotenv').config();
 const express = require('express');
+const session = require('express-session');
 const path = require('path');
-const compression = require('compression');
-const cookieParser = require('cookie-parser');
-
-const env = require('./src/config/env');
-const sessionMiddleware = require('./src/config/session');
-const logger = require('./src/utils/logger');
-const securityHeaders = require('./src/middlewares/securityMiddleware');
-const { globalLimiter } = require('./src/middlewares/rateLimitMiddleware');
-const globalSettings = require('./src/middlewares/globalSettings');
-const { notFound, errorHandler } = require('./src/middlewares/errorMiddleware');
-const routes = require('./src/routes');
-
 const app = express();
 
-// Trust proxy (saat dibalik nginx/cloudflare)
-app.set('trust proxy', 1);
+const mainRoutes = require('./src/routes/mainRoutes');
+const globalSettings = require('./src/middleware/globalSettings');
+// const maintenanceCheck = require('./src/middleware/maintenanceCheck'); // <-- TIDAK DIPERLUKAN DI SINI
 
-// View engine
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve client-side config
+app.get('/config.js', (req, res) => {
+    res.type('application/javascript');
+    res.send(`window.APP_CONFIG = { backendUrl: "${process.env.BACKEND_URL || 'http://localhost:5000'}" };`);
+});
+
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    unset: 'destroy',
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // true di production (HTTPS)
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        sameSite: 'lax'
+    },
+    name: 'uptd.sid'
+}));
+
+// Global settings (tetap dipasang)
+app.use(globalSettings);
+
+// ❌ HAPUS INI → app.use(maintenanceCheck);
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'src/views'));
 
-// Security headers
-app.use(securityHeaders);
-
-// Body parser & cookie
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cookieParser());
-
-// Compression
-app.use(compression());
-
-// Rate limit global
-app.use(globalLimiter);
-
-// Static files
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Session (cookie aman: httpOnly, sameSite, secure di production)
-app.use(sessionMiddleware);
-
-// Global settings (load setting dari DB → res.locals.settings)
-app.use(globalSettings);
-
-// Pass session user + currentUrl ke semua view
 app.use((req, res, next) => {
     res.locals.user = req.session.user || null;
     res.locals.currentUrl = req.originalUrl;
+    res.locals.backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    res.locals.appConfig = {
+        API_BASE_URL: process.env.API_URL || 'http://localhost:5000/api',
+        apiUrl: process.env.API_URL || '/api',
+        assetBaseUrl: process.env.BACKEND_URL || 'http://localhost:5000'
+    };
     next();
 });
 
-// Mount semua route
-app.use('/', routes);
+app.post('/log-src', express.json(), (req, res) => { require('fs').writeFileSync('d:/Magang/baru/uptd-baru/frontend/img-src.log', JSON.stringify(req.body)); res.send('ok'); }); app.use('/', mainRoutes);
 
-// 404 + error handler (HARUS paling bawah)
-app.use(notFound);
-app.use(errorHandler);
-
-// Start server
-const server = app.listen(env.PORT, () => {
-    logger.info(`Frontend server running on port ${env.PORT} [${env.NODE_ENV}]`);
+app.use((req, res) => {
+    res.redirect('/');
 });
 
-// Graceful shutdown
-process.on('unhandledRejection', (err) => {
-    logger.error('Unhandled Rejection: ' + err.message);
-    server.close(() => process.exit(1));
+app.use((err, req, res, next) => {
+    req.session.error = 'Terjadi kesalahan server. Silakan coba lagi.';
+    res.redirect('/');
 });
 
-process.on('SIGTERM', () => {
-    logger.info('SIGTERM received, closing frontend server');
-    server.close(() => process.exit(0));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log('=================================');
+    console.log('🚀 FRONTEND SERVER RUNNING');
+    console.log(`Port: ${PORT}`);
+    console.log(`URL: ${process.env.FRONTEND_URL || 'http://localhost:' + PORT}`);
+    console.log('=================================');
 });
-
-module.exports = app;

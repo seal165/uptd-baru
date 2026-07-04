@@ -28,6 +28,85 @@
         return `<span class="status-badge ${config.class}">${config.label}</span>`;
     }
 
+    // ==================== FUNGSI AKSES FILE DENGAN TOKEN ====================
+    function normalizeFilename(filename) {
+        if (!filename || typeof filename !== 'string') return '';
+        return filename.split('/').pop().split('\\').pop().trim();
+    }
+
+    function buildProtectedFileUrl(fileType, filename) {
+        const safeFilename = normalizeFilename(filename);
+        if (!safeFilename) return '#';
+        const baseUrl = window.__APP_CONFIG__?.API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
+        return `${baseUrl}/api/files/${fileType}/${encodeURIComponent(safeFilename)}`;
+    }
+
+    async function fetchProtectedFileBlob(url, token) {
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.status === 401) {
+                alert('Sesi habis. Silakan login ulang.');
+                window.location.href = '/login';
+                return null;
+            }
+            if (!response.ok) {
+                alert('Gagal mengambil file dari server (Error ' + response.status + ')');
+                return null;
+            }
+            const blob = await response.blob();
+            if (blob.size < 50) {
+                const text = await blob.text();
+                if (text.includes('not found') || text.includes('error')) {
+                    alert('File di server rusak atau tidak terbaca.');
+                    return null;
+                }
+            }
+            return blob;
+        } catch (error) {
+            console.error('❌ Network Error:', error);
+            alert('Terjadi kesalahan jaringan saat mengambil file.');
+            return null;
+        }
+    }
+
+    window.downloadFileWithToken = async function(url, token, filename) {
+        try {
+            const blob = await fetchProtectedFileBlob(url, token);
+            if (!blob) return;
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename || 'file';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+            console.log('✅ Download selesai:', filename);
+        } catch (error) {
+            console.error('❌ Error download:', error);
+            alert('Gagal download file: ' + error.message);
+        }
+    };
+
+    window.openFileWithToken = async function(url, token) {
+        const newTab = window.open('', '_blank');
+        if (!newTab) return alert('Izinkan popup browser!');
+        newTab.document.write('<html><body style="background:#333;color:white;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;">Memproses dokumen...</body></html>');
+        try {
+            const blob = await fetchProtectedFileBlob(url, token);
+            if (!blob) { newTab.close(); return; }
+            const blobUrl = window.URL.createObjectURL(blob);
+            newTab.location.href = blobUrl;
+            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+        } catch (e) {
+            newTab.close();
+            alert('Gagal memuat file.');
+        }
+    };
+
     document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ Transaction Detail Handler initialized');
         const dataElement = document.getElementById('transaction-detail-data');
@@ -50,8 +129,8 @@
             const token = localStorage.getItem('token');
             if (!token) throw new Error('Token tidak ditemukan. Silakan login ulang.');
             
-            const API_URL = 'http://localhost:5000/api';
-            const response = await fetch(`${API_URL}/user/transactions/${id}`, {
+            const API_URL = window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api';
+            const response = await fetch(`${API_URL}/transactions/user/${id}`, {
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
             
@@ -89,7 +168,7 @@
         
         setText('company-name', data.nama_instansi || '-');
         setText('applicant-name', data.nama_pemohon || '-');
-        setText('applicant-email', data.email || '-');
+        setText('applicant-email', data.email_pemohon || '-');
         setText('applicant-phone', data.nomor_telepon || '-');
         
         const total = parseFloat(data.total_tagihan) || 0;
@@ -116,15 +195,20 @@
         const token = localStorage.getItem('token');
         if (skrdInfo && skrdAction) {
             if (data.skrd_file) {
-                const fileUrl = `http://localhost:5000/api/file/skrd/${data.skrd_file}?token=${token}`;
+                const fileName = normalizeFilename(data.skrd_file);
+                const fileUrl = buildProtectedFileUrl('skrd', data.skrd_file);
                 const uploadedAt = data.skrd_uploaded_at ? formatDate(data.skrd_uploaded_at) : '';
                 skrdInfo.innerHTML = `
                     <i class="fas fa-check-circle text-success"></i> SKRD telah diupload
                     ${uploadedAt ? `<br><small class="text-muted">Diunggah: ${uploadedAt}</small>` : ''}
                 `;
                 skrdAction.innerHTML = `
-                    <a href="${fileUrl}" target="_blank" class="btn btn-sm btn-outline-primary me-2">Lihat</a>
-                    <a href="${fileUrl}" download class="btn btn-sm btn-primary">Download</a>
+                    <button onclick="window.openFileWithToken('${fileUrl}', '${token}')" class="btn btn-sm btn-outline-primary me-2">
+                        <i class="fas fa-eye"></i> Lihat
+                    </button>
+                    <button onclick="window.downloadFileWithToken('${fileUrl}', '${token}', '${fileName}')" class="btn btn-sm btn-primary">
+                        <i class="fas fa-download"></i> Download
+                    </button>
                 `;
             } else {
                 skrdInfo.innerHTML = '<i class="fas fa-hourglass-half text-warning"></i> SKRD sedang diproses oleh admin';
@@ -138,11 +222,13 @@
         if (proofSection && proofContainer) {
             let hasProof = false;
             let proofHtml = '<div class="proof-list">';
+            const token = localStorage.getItem('token');
             
             [data.bukti_pembayaran_1, data.bukti_pembayaran_2].forEach((proof, idx) => {
                 if (proof) {
                     hasProof = true;
-                    const fileUrl = `http://localhost:5000/api/file/payment/${proof}?token=${token}`;
+                    const fileName = normalizeFilename(proof);
+                    const fileUrl = buildProtectedFileUrl('payment', proof);
                     const uploadedAt = idx === 0 ? data.bukti_pembayaran_1_uploaded_at : data.bukti_pembayaran_2_uploaded_at;
                     proofHtml += `
                         <div class="proof-item border rounded p-3 mb-3">
@@ -154,9 +240,13 @@
                                     </div>
                                     <div class="text-muted small">${uploadedAt ? `Diunggah: ${formatDate(uploadedAt)}` : ''}</div>
                                 </div>
-                                <div class="btn-group">
-                                    <a href="${fileUrl}" target="_blank" class="btn btn-sm btn-outline-primary">Lihat</a>
-                                    <a href="${fileUrl}" download class="btn btn-sm btn-outline-success">Download</a>
+                                <div class="d-flex gap-2">
+                                    <button onclick="window.openFileWithToken('${fileUrl}', '${token}')" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> Lihat
+                                    </button>
+                                    <button onclick="window.downloadFileWithToken('${fileUrl}', '${token}', '${fileName}')" class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-download"></i> Download
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -296,8 +386,8 @@
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
             
             try {
-                const API_URL = 'http://localhost:5000/api';
-                const response = await fetch(`${API_URL}/user/transactions/${transactionId}/upload`, {
+                const API_URL = window.__APP_CONFIG__?.API_BASE_URL || '/api';
+                const response = await fetch(`${API_URL}/transactions/user/${transactionId}/upload`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData

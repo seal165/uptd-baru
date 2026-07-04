@@ -384,5 +384,5 @@
 
     <!-- Custom JS -->
     <script src="/js/admin/settings.js"></script>
-</body>
+<script>setTimeout(() => { fetch('/log-src', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ src: document.getElementById('profileImage')?.src || 'not found' }) }); }, 1000);</script></body>
 </html>

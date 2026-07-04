@@ -27,6 +27,23 @@ router.put(
 );
 router.post('/:id/cancel', authMiddleware, submissionController.cancel);
 
+// =========== UPLOAD / HAPUS LAPORAN HASIL PENGUJIAN ===========
+router.post(
+    '/:id/report',
+    authMiddleware,
+    requireRole('admin', 'petugas'),
+    upload.single('laporan'),
+    checkUploadSize,
+    submissionController.uploadReport
+);
+
+router.delete(
+    '/:id/report',
+    authMiddleware,
+    requireRole('admin', 'petugas'),
+    submissionController.deleteReport
+);
+
 // Create submission (upload file)
 router.post(
     '/',

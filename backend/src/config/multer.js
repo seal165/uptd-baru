@@ -19,6 +19,10 @@ const storage = multer.diskStorage({
             subFolder = 'payment';
         } else if (file.fieldname === 'avatar') {
             subFolder = 'avatar';
+        } else if (file.fieldname === 'skrd') {
+            subFolder = 'skrd';
+        } else if (file.fieldname === 'laporan') {
+            subFolder = 'laporan';
         }
 
         const finalPath = path.join(rootPath, subFolder);

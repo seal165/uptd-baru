@@ -18,7 +18,11 @@ exports.findById = async (id) => {
     const [rows] = await db.query(
         `SELECT id, email, role, full_name, employee_id, nama_instansi,
                 alamat, nomor_telepon, avatar, notif_email, notif_wa,
-                created_at, updated_at
+                created_at, updated_at,
+                (SELECT COUNT(*) FROM submissions WHERE user_id = users.id) AS total_transactions,
+                (SELECT COUNT(*) FROM submissions WHERE user_id = users.id AND status LIKE '%Selesai%') AS completed_transactions,
+                (SELECT COUNT(*) FROM submissions WHERE user_id = users.id AND status NOT LIKE '%Selesai%') AS pending_transactions,
+                (SELECT SUM(total_tagihan) FROM payments WHERE submission_id IN (SELECT id FROM submissions WHERE user_id = users.id) AND status_pembayaran = 'Lunas') AS total_payments
          FROM users WHERE id = ? LIMIT 1`,
         [id]
     );
@@ -59,6 +63,7 @@ exports.updatePassword = async (userId, hashedPassword) => {
 exports.updateProfile = async (userId, data) => {
     const allowed = [
         'full_name',
+        'email',
         'nama_instansi',
         'alamat',
         'nomor_telepon',
@@ -97,7 +102,8 @@ exports.updateAvatar = async (userId, avatarPath) => {
 exports.list = async ({ role, search, limit = 50, offset = 0 } = {}) => {
     const params = [];
     let sql = `SELECT id, email, role, full_name, employee_id, nama_instansi,
-                      nomor_telepon, avatar, created_at
+                      nomor_telepon, avatar, created_at,
+                      (SELECT COUNT(*) FROM submissions WHERE user_id = users.id) AS total_transactions
                FROM users WHERE 1=1`;
     if (role) {
         sql += ' AND role = ?';

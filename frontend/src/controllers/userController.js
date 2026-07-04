@@ -48,20 +48,22 @@ exports.dashboard = async (req, res) => {
                 ...fallbackData,
                 ...d,
                 recentSubmissions: (d.recentSubmissions || []).map((sub) => ({
-                    appId: sub.no_permohonan || sub.id,
-                    projectName: sub.nama_proyek || 'Pengujian',
+                    id: sub.id,
+                    no_permohonan: sub.no_permohonan || sub.id,
+                    nama_proyek: sub.nama_proyek || 'Pengujian',
                     status: sub.status || 'Pending',
-                    dateSubmitted: sub.created_at || sub.tgl_permohonan || null,
-                    serviceType: `${sub.totalSamples || 0} sampel`
+                    created_at: sub.created_at || sub.tgl_permohonan || null,
+                    total_samples: `${sub.totalSamples || sub.total_samples || 0} sampel`
                 }))
             };
         }
 
         // Override recentSubmissions dari history biar konsisten
         if (historyRes.status === 'fulfilled' && historyRes.value.data?.success) {
-            const history = historyRes.value.data.data || [];
+            const paginatedData = historyRes.value.data.data || {};
+            const history = Array.isArray(paginatedData) ? paginatedData : (paginatedData.data || []);
             const recent = history
-                .slice()
+                .slice(0, 5) // ambil 5 teratas
                 .sort((a, b) => {
                     const at = new Date(a.created_at || 0).getTime();
                     const bt = new Date(b.created_at || 0).getTime();
@@ -71,18 +73,19 @@ exports.dashboard = async (req, res) => {
                     const num = Number.parseInt(sub.id, 10);
                     const validNum = Number.isInteger(num) && num > 0;
                     return {
-                        appId: validNum ? String(num).padStart(6, '0') : (sub.no_permohonan || sub.id || '-'),
-                        projectName: sub.nama_proyek || 'Pengujian',
+                        id: sub.id,
+                        no_permohonan: validNum ? String(num).padStart(6, '0') : (sub.no_permohonan || sub.id || '-'),
+                        nama_proyek: sub.nama_proyek || 'Pengujian',
                         status: sub.status || 'Menunggu Verifikasi',
-                        dateSubmitted: sub.created_at || sub.tgl_permohonan || null,
-                        serviceType: sub.total_samples
+                        created_at: sub.created_at || sub.tgl_permohonan || null,
+                        total_samples: sub.total_samples !== undefined && sub.total_samples !== null
                             ? `${sub.total_samples} sampel`
                             : (sub.kode_pengujian || sub.service_type || '-')
                     };
                 });
             if (recent.length > 0) {
                 dashboardData.recentSubmissions = recent;
-                dashboardData.totalSubmissions = history.length;
+                // JANGAN overwrite totalSubmissions dengan history.length karena history.length hanya limit 20 (paginated)
             }
         }
 

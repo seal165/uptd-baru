@@ -4,7 +4,7 @@
     'use strict';
 
     // ==================== KONFIGURASI ====================
-    const API_BASE_URL = 'http://localhost:5000/api';
+    const API_BASE_URL = window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api';
     let loadingTimeout;
     let refreshInterval;
     let revenueChart = null;
@@ -86,7 +86,7 @@
         }, 2000);
         
         try {
-            const response = await fetchWithTimeout(`${API_BASE_URL}/admin/dashboard/stats`, {
+            const response = await fetchWithTimeout(`${API_BASE_URL}/dashboard/admin/stats`, {
                 method: 'GET',
                 headers: getHeaders(),
                 credentials: 'include'
@@ -327,28 +327,41 @@
             if (sub.status === 'Selesai') badgeClass = 'badge-soft-info';
             if (sub.status === 'Belum Lunas') badgeClass = 'badge-soft-danger';
             
-            // 🔴 AMBIL ID YANG BENAR (pastikan ID adalah number, bukan string dengan prefix)
-            const submissionId = sub.id;
+            // 🔴 AMBIL ID YANG BENAR
+            const formattedId = `SUB-${String(sub.id).padStart(5, '0')}`;
+            const noPermohonan = sub.no_permohonan || '';
             
             // 🔴 TAMPILKAN NAMA PERUSAHAAN DENGAN BENAR
-            // Coba beberapa kemungkinan field name
-            const companyName = sub.company || sub.nama_instansi || sub.perusahaan || '-';
+            const companyName = sub.nama_instansi || sub.nama_pemohon || '-';
+            const pemohonName = sub.nama_pemohon || '-';
             
             // 🔴 AMBIL JENIS UJI
-            const jenisUji = sub.type || sub.jenis_uji || '-';
+            const jenisUji = sub.category_name ? sub.category_name.toUpperCase() : (sub.total_samples ? `${sub.total_samples} Sampel` : 'Pengujian Material');
+            const kategoriUji = sub.type_name || '';
+            
+            const dateStr = sub.created_at ? new Date(sub.created_at).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) : '-';
 
             return `
-                <tr class="fade-in">
-                    <td class="ps-4 fw-bold text-primary">${submissionId}</td>
+                <tr class="fade-in" style="cursor: pointer;" onclick="window.location.href='/admin/submissions/${sub.id}'">
+                    <td class="ps-4">
+                        <span class="fw-bold text-dark">${formattedId}</span>
+                        <small class="d-block text-muted">${noPermohonan}</small>
+                    </td>
                     <td>
                         <div class="fw-bold text-dark">${companyName}</div>
+                        <small class="text-muted">${pemohonName}</small>
                     </td>
-                    <td>${jenisUji}</td>
-                    <td>${sub.date}</td>
+                    <td>
+                        <div class="jenis-pengujian-cell">
+                            <span class="jenis-pengujian-tipe fw-bold text-dark d-block" style="font-size: 0.85rem;">${jenisUji}</span>
+                            ${kategoriUji ? `<span class="jenis-pengujian-kategori text-muted small">${kategoriUji}</span>` : ''}
+                        </div>
+                    </td>
+                    <td>${dateStr}</td>
                     <td><span class="badge ${badgeClass} px-3 py-2 rounded-pill">${sub.status || '-'}</span></td>
                     <td class="text-end pe-4">
                         <!-- 🔴 LINK YANG BENAR KE HALAMAN DETAIL SUBMISSION -->
-                        <a href="/admin/submissions/${submissionId}" class="btn btn-sm btn-light text-primary fw-bold">
+                        <a href="/admin/submissions/${sub.id}" class="btn btn-sm btn-light text-primary fw-bold">
                             Detail <i class="fas fa-arrow-right ms-1"></i>
                         </a>
                     </td>

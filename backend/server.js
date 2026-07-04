@@ -14,7 +14,9 @@ const path = require('path');
 
 const env = require('./src/config/env');
 const logger = require('./src/utils/logger');
+console.log('🟢 [3] Sebelum require routes...');
 const apiRoutes = require('./src/routes');
+console.log('🟢 [4] Selesai require routes!');
 const { globalLimiter } = require('./src/middlewares/rateLimitMiddleware');
 const { notFound, errorHandler } = require('./src/middlewares/errorMiddleware');
 
@@ -76,6 +78,7 @@ app.use(errorHandler);
 
 // Start server
 const server = app.listen(env.PORT, () => {
+    console.log(`🚀🚀🚀 SERVER BERHASIL JALAN DI PORT ${env.PORT} !!!`);
     logger.info(`Server running on port ${env.PORT} [${env.NODE_ENV}]`);
 });
 

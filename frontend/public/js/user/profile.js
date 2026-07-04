@@ -10,7 +10,9 @@
 
     function getAvatarUrl(avatar) {
         if (!avatar) return '';
-        return avatar.startsWith('http') ? avatar : `http://localhost:5000${avatar}`;
+        if (avatar.startsWith('http')) return avatar;
+        const baseUrl = window.__APP_CONFIG__?.API_BASE_URL.replace('/api', '') || 'http://localhost:5000';
+        return `${baseUrl}${avatar}`;
     }
 
     function buildAvatarMarkup(avatar, imageClass, iconClass) {
@@ -76,7 +78,7 @@
                 return;
             }
 
-            const response = await fetch('http://localhost:5000/api/user/notification-settings', {
+            const response = await fetch((window.__APP_CONFIG__?.API_BASE_URL || '/api') + '/user/notification-settings', {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -108,11 +110,11 @@
                 return;
             }
             
-            const API_URL = 'http://localhost:5000/api';
+            const API_URL = window.__APP_CONFIG__?.API_BASE_URL || '/api';
             
             console.log('📡 Fetching user profile...');
             
-            const response = await fetch(`${API_URL}/user/profile`, {
+            const response = await fetch(`${API_URL}/user/profile/me`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -238,11 +240,11 @@
                 return;
             }
             
-            const API_URL = 'http://localhost:5000/api';
+            const API_URL = window.__APP_CONFIG__?.API_BASE_URL || '/api';
             
             showToast('Menyimpan perubahan...', 'info');
             
-            const response = await fetch(`${API_URL}/user/profile`, {
+            const response = await fetch(`${API_URL}/user/profile/me`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -305,11 +307,11 @@
                 return;
             }
             
-            const API_URL = 'http://localhost:5000/api';
+            const API_URL = window.__APP_CONFIG__?.API_BASE_URL || '/api';
             
             showToast('Menyimpan perubahan...', 'info');
             
-            const response = await fetch(`${API_URL}/user/profile`, {
+            const response = await fetch(`${API_URL}/user/profile/me`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -394,7 +396,7 @@
                 return;
             }
             
-            const API_URL = 'http://localhost:5000/api';
+            const API_URL = window.__APP_CONFIG__?.API_BASE_URL || '/api';
             
             showToast('Mengubah password...', 'info');
             
@@ -482,14 +484,14 @@
                 return;
             }
             
-            const API_URL = 'http://localhost:5000/api';
+            const API_URL = window.__APP_CONFIG__?.API_BASE_URL || '/api';
             
             const formData = new FormData();
             formData.append('avatar', file);
             
             showToast('Mengupload foto...', 'info');
             
-            const response = await fetch(`${API_URL}/user/avatar`, {
+            const response = await fetch(`${API_URL}/user/profile/avatar`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`

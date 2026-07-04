@@ -4,7 +4,7 @@
     'use strict';
 
     // ==================== KONFIGURASI ====================
-    const API_BASE_URL = 'http://localhost:5000/api';
+    const API_BASE_URL = window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api';
     const ITEMS_PER_PAGE = 10;
     const LOAD_TIMEOUT = 5000;
     
@@ -126,10 +126,10 @@
             console.log('📦 Data dari database:', result);
 
             if (result.success) {
-                allInvoices = result.data.invoices || [];
-                totalData = result.data.total || 0;
+                allInvoices = Array.isArray(result.data) ? result.data : (result.data?.data || result.data?.invoices || []);
+                totalData = result.pagination?.total || result.data?.total || 0;
                 
-                updateStats(result.data.stats);
+                updateStats(result.data?.stats || { total: totalData });
                 
                 setTimeout(() => {
                     updateInvoicesTable(allInvoices);
@@ -244,14 +244,14 @@
 
         let html = '';
         invoices.forEach(inv => {
-            const invoiceNumber = inv.invoice_number || inv.no_invoice || '-';
-            const skrdNumber = inv.skrd_number || inv.no_invoice || '-';
-            const companyName = inv.nama_instansi || '-';
+            const invoiceNumber = inv.no_invoice || '-';
+            const skrdNumber = inv.no_invoice || '-';
+            const companyName = inv.nama_instansi || inv.nama_pemohon || '-';
             const serviceDesc = inv.nama_proyek || 'Pengujian';
-            const issueDate = inv.issue_date || inv.created_at;
-            const dueDate = inv.due_date || inv.created_at;
-            const totalAmount = parseFloat(inv.total_amount || 0);
-            const remainingAmount = parseFloat(inv.remaining_amount || totalAmount);
+            const issueDate = inv.created_at;
+            const dueDate = inv.due_date || inv.created_at; 
+            const totalAmount = parseFloat(inv.total_tagihan || 0);
+            const remainingAmount = inv.sisa_tagihan !== undefined && inv.sisa_tagihan !== null ? parseFloat(inv.sisa_tagihan) : totalAmount;
             const status = inv.status_pembayaran || 'Belum Bayar';
             
             let statusClass = 'badge-soft-secondary';
@@ -503,11 +503,11 @@
 
             const result = await response.json();
             
-            if (!result.success || !result.data.invoices) {
-                throw new Error('Data tidak ditemukan');
+            if (!result.success || (!Array.isArray(result.data) && !result.data.invoices)) {
+                return;
             }
 
-            const allData = result.data.invoices;
+            const allData = Array.isArray(result.data) ? result.data : result.data.invoices;
 
             const headers = [
                 'No. Invoice', 'SKRD', 'Perusahaan', 'Layanan', 'Tanggal Terbit',

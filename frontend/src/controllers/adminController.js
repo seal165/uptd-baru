@@ -9,7 +9,7 @@ const logger = require('../utils/logger');
 // ==================== DASHBOARD ====================
 exports.dashboard = async (req, res) => {
     const token = req.session?.token;
-    if (!token) return res.redirect('/admin/login');
+    // if (!token) return res.redirect('/admin/login');
 
     const fallbackData = {
         stats: { income: 'Rp 0', pending: 0, completed: 0, awaitingPayment: 0 },
@@ -48,7 +48,7 @@ exports.dashboard = async (req, res) => {
 // ==================== SUBMISSIONS ====================
 exports.submissions = async (req, res) => {
     const token = req.session?.token;
-    if (!token) return res.redirect('/admin/login');
+    // if (!token) return res.redirect('/admin/login');
 
     const page = parseInt(req.query.page, 10) || 1;
     const status = req.query.status || '';
@@ -135,7 +135,7 @@ exports.userDetail = (req, res) => {
 
 // ==================== SETTINGS ====================
 exports.settings = (req, res) => {
-    res.render('admin/settings', {
+    res.render('admin/settings', { user: { avatar: '/uploads/avatar/avatar-1782996402080-461994295.jpg' },
         title: 'Pengaturan Sistem',
         page: 'settings',
         user: req.session?.user

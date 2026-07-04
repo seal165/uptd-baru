@@ -6,8 +6,14 @@ exports.updateSystemSchema = Joi.object({
     phone: Joi.string().max(50),
     email: Joi.string().email().max(100),
     logo_url: Joi.string().max(500).allow('', null),
-    maintenance_mode: Joi.string().valid('true', 'false'),
-    max_upload_size: Joi.alternatives(Joi.number(), Joi.string())
+    maintenance_mode: Joi.alternatives().try(
+        Joi.boolean(),
+        Joi.string().valid('true', 'false', '1', '0')
+    ).default(false),
+    max_upload_size: Joi.alternatives().try(
+        Joi.number(),
+        Joi.string()
+    ).default(5)
 }).min(1);
 
 exports.updateBusyModeSchema = Joi.object({

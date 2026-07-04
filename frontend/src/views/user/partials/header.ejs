@@ -23,6 +23,9 @@
     <!-- Settings dari server via data attribute -->
     <div data-settings='<%- JSON.stringify(locals.settings || {}).replace(/'/g, "\\'") %>' style="display:none;"></div>
     <script>
+        window.__APP_CONFIG__ = <%- JSON.stringify(locals.appConfig || {}).replace(/</g, '\\u003c') %>;
+    </script>
+    <script>
         (function() {
             try {
                 var el = document.querySelector('[data-settings]');

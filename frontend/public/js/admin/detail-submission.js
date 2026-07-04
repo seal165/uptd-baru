@@ -4,8 +4,8 @@
     'use strict';
 
     // ==================== KONFIGURASI ====================
-    const API_BASE_URL = 'http://localhost:5000/api';
-    const BACKEND_BASE_URL = 'http://localhost:5000';
+    const API_BASE_URL = window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api';
+    const BACKEND_BASE_URL = (window.__APP_CONFIG__?.API_BASE_URL?.replace('/api', '') || 'http://localhost:5000');
     const LOAD_TIMEOUT = 5000;
     
     // Ambil ID dari data attribute
@@ -29,6 +29,41 @@
         id: null
     };
     const CACHE_DURATION = 30000; // 30 detik
+
+    // ==================== AMBIL SETTING DARI BACKEND ====================
+    let settingsLoaded = false;
+
+    async function loadSettings() {
+        // Jika sudah ada window.settings, gunakan
+        if (window.settings && window.settings.max_upload_size) {
+            settingsLoaded = true;
+            console.log('⚙️ Settings already loaded:', window.settings);
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/settings/system`, {
+                headers: { 'Authorization': `Bearer ${getToken()}` }
+            });
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data) {
+                    window.settings = result.data;
+                    settingsLoaded = true;
+                    console.log('⚙️ Settings loaded from API:', window.settings);
+                } else {
+                    // Fallback default
+                    window.settings = { max_upload_size: 5 };
+                }
+            } else {
+                window.settings = { max_upload_size: 5 };
+            }
+        } catch (error) {
+            console.warn('Gagal memuat settings, gunakan default 5MB:', error);
+            window.settings = { max_upload_size: 5 };
+        }
+        settingsLoaded = true;
+    }
 
     // Template formulir pengajuan
     const formTemplate = `UPTD-PBKBIK-F.01-PO.07.docx
@@ -104,12 +139,98 @@ III. **KAJI ULANG PERMINTAAN**
 
     function buildProtectedFileUrl(fileType, filename) {
         const safeFilename = normalizeFilename(filename);
-        const token = getToken();
+        if (!safeFilename) return '#';
 
-        if (!safeFilename || !token) return '#';
-
-        return `${BACKEND_BASE_URL}/api/file/${fileType}/${encodeURIComponent(safeFilename)}?token=${encodeURIComponent(token)}`;
+        // 🔥 KEMBALIKAN URL TANPA TOKEN (karena akan dikirim via header)
+        return `${BACKEND_BASE_URL}/api/files/${fileType}/${encodeURIComponent(safeFilename)}`;
     }
+
+    // ==================== FUNGSI AKSES FILE DENGAN TOKEN ====================
+    async function fetchProtectedFileBlob(url, token) {
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.status === 401) {
+                alert('Sesi habis. Silakan login ulang.');
+                window.location.href = '/admin/login';
+                return null;
+            }
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.error('❌ Server Error Response:', errorData);
+                if (response.status === 404) {
+                    alert('File tidak ditemukan di server.');
+                } else {
+                    alert('Gagal mengambil file dari server (Error ' + response.status + ')');
+                }
+                return null;
+            }
+
+            const blob = await response.blob();
+            console.log('📦 Received Blob size:', blob.size, 'bytes');
+            if (blob.size < 50) {
+                console.warn('⚠️ Ukuran file sangat kecil, kemungkinan corrupt.');
+                const text = await blob.text();
+                console.log('📄 Isi blob kecil tersebut:', text);
+                if (text.includes('not found') || text.includes('error')) {
+                    alert('File di server rusak atau tidak terbaca.');
+                    return null;
+                }
+            }
+            return blob;
+        } catch (error) {
+            console.error('❌ Network Error saat fetch file:', error);
+            alert('Terjadi kesalahan jaringan saat mengambil file.');
+            return null;
+        }
+    }
+
+    window.openFileWithToken = async function(url, token) {
+        const newTab = window.open('', '_blank');
+        if (!newTab) return alert('Izinkan popup browser!');
+        
+        newTab.document.write('<html><body style="background:#333;color:white;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;">Memproses dokumen...</body></html>');
+
+        try {
+            const blob = await fetchProtectedFileBlob(url, token);
+            if (!blob) {
+                newTab.close();
+                return;
+            }
+            const blobUrl = window.URL.createObjectURL(blob);
+            newTab.location.href = blobUrl;
+            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+        } catch (e) {
+            newTab.close();
+            alert('Gagal memuat file.');
+        }
+    };
+
+    window.downloadFileWithToken = async function(url, token) {
+        try {
+            console.log('📥 Downloading file:', url);
+            const blob = await fetchProtectedFileBlob(url, token);
+            if (!blob) return;
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            const urlParts = url.split('/');
+            const filename = decodeURIComponent(urlParts[urlParts.length - 1].split('?')[0]);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+            console.log('✅ Download selesai:', filename);
+        } catch (error) {
+            console.error('❌ Error download:', error);
+            alert('Gagal download file: ' + error.message);
+        }
+    };
 
     if (!getToken()) {
         window.location.href = '/admin/login';
@@ -243,13 +364,16 @@ III. **KAJI ULANG PERMINTAAN**
         }
     }
 
-    // 🔥 FUNGSI LOAD DOKUMEN PENDUKUNG (PERBAIKAN)
+    // ==================== LOAD DOKUMEN PENDUKUNG ====================
     async function loadDocuments() {
         try {
             const data = detailCache.data;
             if (!data) return;
             
-            // Surat Permohonan
+            const token = getToken();
+            if (!token) return;
+
+            // ---- Surat Permohonan ----
             if (data.file_surat_permohonan) {
                 const fileName = normalizeFilename(data.file_surat_permohonan);
                 const fileUrl = buildProtectedFileUrl('surat', data.file_surat_permohonan);
@@ -257,12 +381,12 @@ III. **KAJI ULANG PERMINTAAN**
                     <i class="fas fa-check-circle text-success me-1"></i> Terupload: ${fileName}
                 `;
                 document.getElementById('suratPermohonanActions').innerHTML = `
-                    <a href="${fileUrl}" download class="btn btn-sm btn-outline-success me-2">
+                    <button onclick="window.openFileWithToken('${fileUrl}', '${token}')" class="btn btn-sm btn-outline-primary me-1">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="window.downloadFileWithToken('${fileUrl}', '${token}')" class="btn btn-sm btn-primary">
                         <i class="fas fa-download"></i>
-                    </a>
-                    <a href="${fileUrl}" target="_blank" class="text-secondary align-middle" style="font-size: 1.1rem; text-decoration: none;" title="Lihat">
-                        <i class="fas fa-external-link-alt"></i>
-                    </a>
+                    </button>
                 `;
             } else {
                 document.getElementById('suratPermohonanInfo').innerHTML = `
@@ -270,8 +394,8 @@ III. **KAJI ULANG PERMINTAAN**
                 `;
                 document.getElementById('suratPermohonanActions').innerHTML = '';
             }
-            
-            // Scan KTP
+
+            // ---- Scan KTP ----
             if (data.file_ktp) {
                 const fileName = normalizeFilename(data.file_ktp);
                 const fileUrl = buildProtectedFileUrl('ktp', data.file_ktp);
@@ -279,12 +403,12 @@ III. **KAJI ULANG PERMINTAAN**
                     <i class="fas fa-check-circle text-success me-1"></i> Terupload: ${fileName}
                 `;
                 document.getElementById('scanKTPActions').innerHTML = `
-                    <a href="${fileUrl}" download class="btn btn-sm btn-outline-success me-2">
+                    <button onclick="window.openFileWithToken('${fileUrl}', '${token}')" class="btn btn-sm btn-outline-primary me-1">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="window.downloadFileWithToken('${fileUrl}', '${token}')" class="btn btn-sm btn-primary">
                         <i class="fas fa-download"></i>
-                    </a>
-                    <a href="${fileUrl}" target="_blank" class="text-secondary align-middle" style="font-size: 1.1rem; text-decoration: none;" title="Lihat">
-                        <i class="fas fa-external-link-alt"></i>
-                    </a>
+                    </button>
                 `;
             } else {
                 document.getElementById('scanKTPInfo').innerHTML = `
@@ -292,35 +416,30 @@ III. **KAJI ULANG PERMINTAAN**
                 `;
                 document.getElementById('scanKTPActions').innerHTML = '';
             }
-            
-            // Dokumen Tambahan
+
+            // ---- Dokumen Tambahan (Lampiran) ----
             if (data.dokumen_tambahan) {
                 const fileName = normalizeFilename(data.dokumen_tambahan);
-                const fileUrl = buildProtectedFileUrl('tambahan', data.dokumen_tambahan);
+                // 🔥 Gunakan 'others' karena file ini disimpan di folder others
+                const fileUrl = buildProtectedFileUrl('others', data.dokumen_tambahan);
                 document.getElementById('dokumenTambahanInfo').innerHTML = `
                     <i class="fas fa-check-circle text-success me-1"></i> Terupload: ${fileName}
                 `;
                 document.getElementById('dokumenTambahanActions').innerHTML = `
-                    <a href="${fileUrl}" download class="btn btn-sm btn-outline-success me-2">
+                    <button onclick="window.openFileWithToken('${fileUrl}', '${token}')" class="btn btn-sm btn-outline-primary me-1">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="window.downloadFileWithToken('${fileUrl}', '${token}')" class="btn btn-sm btn-primary">
                         <i class="fas fa-download"></i>
-                    </a>
-                    <a href="${fileUrl}" target="_blank" class="text-secondary align-middle" style="font-size: 1.1rem; text-decoration: none;" title="Lihat">
-                        <i class="fas fa-external-link-alt"></i>
-                    </a>
+                    </button>
                 `;
             } else {
-                const infoElem = document.getElementById('dokumenTambahanInfo');
-                if (infoElem) {
-                    infoElem.innerHTML = `
-                        <i class="fas fa-info-circle text-secondary me-1"></i> Belum diupload
-                    `;
-                }
-                const actionsElem = document.getElementById('dokumenTambahanActions');
-                if (actionsElem) {
-                    actionsElem.innerHTML = '';
-                }
+                document.getElementById('dokumenTambahanInfo').innerHTML = `
+                    <i class="fas fa-info-circle text-secondary me-1"></i> Belum diupload
+                `;
+                document.getElementById('dokumenTambahanActions').innerHTML = '';
             }
-            
+
         } catch (error) {
             console.error('Error loading documents:', error);
         }
@@ -351,8 +470,17 @@ III. **KAJI ULANG PERMINTAAN**
         document.getElementById('picPhone').textContent = data.nomor_telepon || data.pic_phone || '-';
         
         // Update Service Details
-        document.getElementById('category').innerHTML = `<i class="fas fa-flask me-2"></i>${data.category || '-'}`;
-        document.getElementById('testType').textContent = data.test_type || '-';
+        let categoryName = data.category;
+        let testTypeName = data.test_type;
+        if (!categoryName && data.samples && data.samples.length > 0) {
+            categoryName = data.samples[0].category_name;
+        }
+        if (!testTypeName && data.samples && data.samples.length > 0) {
+            testTypeName = data.samples[0].type_name;
+        }
+        
+        document.getElementById('category').innerHTML = `<i class="fas fa-flask me-2"></i>${categoryName || '-'}`;
+        document.getElementById('testType').textContent = testTypeName || '-';
         
         // Update Items Table
         updateItemsTable(data.samples || data.items || []);
@@ -515,6 +643,7 @@ III. **KAJI ULANG PERMINTAAN**
         
         // Tampilkan file laporan jika sudah ada
         if (data.report && data.report.file_laporan) {
+            const token = getToken(); // 🔥 Ambil token
             const reportName = normalizeFilename(data.report.file_laporan);
             const reportUrl = buildProtectedFileUrl('laporan', data.report.file_laporan);
             const reportInfo = `
@@ -537,8 +666,12 @@ III. **KAJI ULANG PERMINTAAN**
                         </div>
                         <div class="d-flex gap-2">
                             <button onclick="window.deleteReport(${data.id})" class="btn btn-outline-danger px-3 shadow-sm">Hapus</button>
-                            <a href="${reportUrl}" target="_blank" class="btn btn-outline-secondary px-3 shadow-sm">Lihat</a>
-                            <a href="${reportUrl}" download class="btn btn-success px-3 shadow-sm">Download</a>
+                            <button onclick="window.openFileWithToken('${reportUrl}', '${token}')" class="btn btn-outline-secondary px-3 shadow-sm">
+                                <i class="fas fa-eye"></i> Lihat
+                            </button>
+                            <button onclick="window.downloadFileWithToken('${reportUrl}', '${token}', '${reportName}')" class="btn btn-success px-3 shadow-sm">
+                                <i class="fas fa-download"></i> Download
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1191,7 +1324,7 @@ III. **KAJI ULANG PERMINTAAN**
         document.getElementById('updateBtnSpinner').style.display = 'inline-block';
 
         try {
-            const API_BASE_URL = 'http://localhost:5000/api';
+            const API_BASE_URL = window.__APP_CONFIG__?.API_BASE_URL || '/api';
             const submissionId = document.getElementById('submissionId').value;
             const response = await fetch(`${API_BASE_URL}/submissions/${submissionId}/cancel`, {
                 method: 'POST',
@@ -1231,7 +1364,7 @@ III. **KAJI ULANG PERMINTAAN**
         }
 
         try {
-            const API_URL = 'http://localhost:5000/api';
+            const API_URL = window.__APP_CONFIG__?.API_BASE_URL || '/api';
             const response = await fetch(`${API_URL}/submissions/${submissionId}/report`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -1434,66 +1567,14 @@ III. **KAJI ULANG PERMINTAAN**
                 doc.rect(x, yPos - 3, 3.5, 3.5);
             };
 
-            // Fungsi Teks Terbungkus (Agar tidak tabrak garis)
+            // Fungsi Teks Terbungkus
             const drawWrappedText = (text, x, yPos, maxWidth) => {
                 if (!text) return;
                 const lines = doc.splitTextToSize(text.toString(), maxWidth - (padding * 2));
                 doc.text(lines, x + padding, yPos);
             };
 
-            // BORDER LUAR
-            doc.rect(12, 12, 192, 305);
-
-            // --- HEADER GRID (3 KOLOM) ---
-            const headerH = 24;
-            const rowH = headerH / 2;
-            const metaH = headerH / 4;
-
-            // 1. Kotak Logo (Kiri)
-            doc.rect(12, 12, 32, headerH); 
-            try {
-                doc.addImage('/img/logo-banten.png', 'PNG', 16, 17.35, 24, 13.3); 
-            } catch (e) { console.log('Logo skip'); }
-
-            // 2. Kotak Judul (Tengah)
-            const judulW = 98; 
-            doc.rect(44, 12, judulW, rowH);
-            doc.rect(44, 12 + rowH, judulW, rowH);
-
-            doc.setFont("helvetica", "bold").setFontSize(12);
-            doc.text("FORMULIR", 44 + (judulW / 2), 12 + 8, { align: 'center' });
-            doc.setFontSize(11);
-            doc.text("PERMINTAAN PENGUJIAN", 44 + (judulW / 2), 12 + rowH + 8, { align: 'center' });
-
-            // 3. Kotak Metadata (Kanan)
-            const metaX = 44 + judulW; 
-            const metaW = 62;
-
-            doc.setFontSize(7.5).setFont("helvetica", "normal");
-
-            doc.rect(metaX, 12, metaW, metaH); 
-            doc.text("No. Dokumen : UPTD-PBKBIK-F.01-PO.07", metaX + 2, 12 + 4.5);
-
-            doc.rect(metaX, 12 + metaH, metaW, metaH); 
-            doc.text("Terbitan / Revisi : 2 / 0", metaX + 2, 12 + metaH + 4.5);
-
-            doc.rect(metaX, 12 + (metaH * 2), metaW, metaH); 
-            doc.text("Tanggal Revisi : 2 Januari 2023", metaX + 2, 12 + (metaH * 2) + 4.5);
-
-            doc.rect(metaX, 12 + (metaH * 3), metaW, metaH); 
-            doc.text("Halaman : 1 dari 1", metaX + 2, 12 + (metaH * 3) + 4.5);
-
-            y = 43;
-            doc.setFontSize(10);
-            doc.text(`Hari / Tanggal : ${formatDate(new Date())}`, 17, y);
-            y += 5;
-            doc.text("Nama Petugas Pendaftaran : ___________________________", 17, y);
-            y += 10;
-
-            // --- I. PERMINTAAN PENGUJIAN ---
-            doc.setFont("helvetica", "bold").text("I. PERMINTAAN PENGUJIAN", 17, y);
-            y += 7;
-
+            // Fungsi draw row dengan data dari objek
             const drawRow = (l1, v1, l2, v2, h = 8) => {
                 doc.rect(startX, y - 5, colMid - startX, h);
                 doc.rect(colMid, y - 5, endX - colMid, h);
@@ -1505,26 +1586,90 @@ III. **KAJI ULANG PERMINTAAN**
                 doc.text(l1, startX + 2, y);
                 doc.text(l2, colMid + 2, y);
 
-                drawWrappedText(v1, startX + 2 + l1Width + 1.5, y, (colMid - startX) - (l1Width + 4));
-                drawWrappedText(v2, colMid + 2 + l2Width + 1.5, y, (endX - colMid) - (l2Width + 4));
+                drawWrappedText(v1 || '', startX + 2 + l1Width + 1.5, y, (colMid - startX) - (l1Width + 4));
+                drawWrappedText(v2 || '', colMid + 2 + l2Width + 1.5, y, (endX - colMid) - (l2Width + 4));
                 
                 y += h;
             };
 
-            drawRow("Nomor Urut :", data.id, "Kode Pengujian :", "");
-            drawRow("Tgl Permohonan :", formatDate(data.created_at), "No Permohonan :", data.registration_number || data.no_permohonan || "-");
-            drawRow("Nama Pemohon :", data.pic_name, "Nama Instansi :", data.company_name);
-            drawRow("Alamat :", data.address, "Nomor Telepon :", data.pic_phone);
-            drawRow("Email :", data.pic_email, "Nama Proyek :", data.proyek);
-            drawRow("Lokasi Proyek :", data.lokasi_proyek, "Catatan Lainnya :", data.description, 20);
+            // ========== BORDER LUAR ==========
+            doc.rect(12, 12, 192, 305);
+
+            // ========== HEADER ==========
+            const headerH = 24;
+            const rowH = headerH / 2;
+            const metaH = headerH / 4;
+
+            // 1. Logo
+            doc.rect(12, 12, 32, headerH); 
+            try {
+                doc.addImage('/img/logo-banten.png', 'PNG', 16, 17.35, 24, 13.3); 
+            } catch (e) { console.log('Logo skip'); }
+
+            // 2. Judul
+            const judulW = 98; 
+            doc.rect(44, 12, judulW, rowH);
+            doc.rect(44, 12 + rowH, judulW, rowH);
+            doc.setFont("helvetica", "bold").setFontSize(12);
+            doc.text("FORMULIR", 44 + (judulW / 2), 12 + 8, { align: 'center' });
+            doc.setFontSize(11);
+            doc.text("PERMINTAAN PENGUJIAN", 44 + (judulW / 2), 12 + rowH + 8, { align: 'center' });
+
+            // 3. Metadata
+            const metaX = 44 + judulW; 
+            const metaW = 62;
+            doc.setFontSize(7.5).setFont("helvetica", "normal");
+            doc.rect(metaX, 12, metaW, metaH); 
+            doc.text("No. Dokumen : UPTD-PBKBIK-F.01-PO.07", metaX + 2, 12 + 4.5);
+            doc.rect(metaX, 12 + metaH, metaW, metaH); 
+            doc.text("Terbitan / Revisi : 2 / 0", metaX + 2, 12 + metaH + 4.5);
+            doc.rect(metaX, 12 + (metaH * 2), metaW, metaH); 
+            doc.text("Tanggal Revisi : 2 Januari 2023", metaX + 2, 12 + (metaH * 2) + 4.5);
+            doc.rect(metaX, 12 + (metaH * 3), metaW, metaH); 
+            doc.text("Halaman : 1 dari 1", metaX + 2, 12 + (metaH * 3) + 4.5);
+
+            y = 43;
+            doc.setFontSize(10);
+            doc.text(`Hari / Tanggal : ${formatDate(new Date())}`, 17, y);
+            y += 5;
+            doc.text("Nama Petugas Pendaftaran : ___________________________", 17, y);
+            y += 10;
+
+            // ========== I. PERMINTAAN PENGUJIAN ==========
+            doc.setFont("helvetica", "bold").text("I. PERMINTAAN PENGUJIAN", 17, y);
+            y += 7;
+
+            // 🔥 DATA DARI API (Mapping yang benar)
+            const noUrut = data.id || '';
+            const tglMohon = data.created_at ? formatDate(data.created_at) : '';
+            const noPermohonan = data.no_permohonan || '-';
+            const namaPemohon = data.nama_pemohon || '-';
+            const instansi = data.nama_instansi || '-';
+            const alamat = data.alamat_pemohon || '-';
+            const telepon = data.nomor_telepon || '-';
+            const email = data.email_pemohon || '-';
+            const proyek = data.nama_proyek || '-';
+            const lokasiProyek = data.lokasi_proyek || '-';
+            const catatan = data.catatan_tambahan || '';
+
+            drawRow("Nomor Urut :", noUrut, "Kode Pengujian :", "");
+            drawRow("Tgl Permohonan :", tglMohon, "No Permohonan :", noPermohonan);
+            drawRow("Nama Pemohon :", namaPemohon, "Nama Instansi :", instansi);
+            drawRow("Alamat :", alamat, "Nomor Telepon :", telepon);
+            drawRow("Email :", email, "Nama Proyek :", proyek);
+            drawRow("Lokasi Proyek :", lokasiProyek, "Catatan Lainnya :", catatan, 20);
             
             y += 5;
 
-            // --- II. KECUKUPAN SAMPLE UJI ---
+            // ========== II. KECUKUPAN SAMPLE UJI ==========
             doc.setFont("helvetica", "bold").text("II. KECUKUPAN SAMPLE UJI", 17, y);
             y += 7;
 
-            // Jenis & Nama Sample (Tinggi 22mm)
+            // Ambil data sample
+            const samples = data.samples || [];
+            const firstSample = samples.length > 0 ? samples[0] : null;
+
+            // Jenis Sample
             doc.rect(startX, y - 5, colMid - startX, 22);
             doc.rect(colMid, y - 5, endX - colMid, 22);
             doc.setFont("helvetica", "normal").setFontSize(9);
@@ -1532,54 +1677,79 @@ III. **KAJI ULANG PERMINTAAN**
 
             // Checkbox Jenis Sample
             let cbX = startX + 2; let cbY = y + 7;
-            const types = ["Beton", "Aspal", "Agregat", "Tanah", "Besi", "......."];
+            const types = ["Beton", "Aspal", "Agregat", "Tanah", "Besi", "Lainnya"];
+            const sampleTypes = firstSample?.jenis_sample ? firstSample.jenis_sample.split(',').map(s => s.trim()) : [];
             types.forEach((t, i) => {
-                if(i === 3) { cbX = startX + 2; cbY += 6; } 
+                if (i === 4) { cbX = startX + 2; cbY += 2; }
+                const isChecked = sampleTypes.some(st => st.toLowerCase().includes(t.toLowerCase()));
                 drawBox(cbX, cbY);
                 doc.text(t, cbX + 5, cbY);
+                if (isChecked) {
+                    doc.setFont("helvetica", "bold");
+                    doc.text('✓', cbX + 1, cbY - 0.5);
+                    doc.setFont("helvetica", "normal");
+                }
                 cbX += 25;
+                if (i === 3) { cbX = startX + 2; cbY += 6; }
             });
 
-            // 🔥 Nama Sample Uji - KOSONGKAN
+            // 🔥 Nama Sample Uji - ISI DARI DATABASE
+            const namaSample = firstSample?.nama_identitas_sample || '';
             doc.text("Nama Sample Uji :", colMid + 2, y);
-            drawWrappedText("________________________", colMid + 32, y, (endX - colMid) - 32);
+            drawWrappedText(namaSample || '________________________', colMid + 32, y, (endX - colMid) - 32);
             y += 22;
 
-            // Jumlah Sample
-            const qCount = (data.items || []).reduce((sum, i) => sum + (i.quantity || 0), 0);
-
-            doc.rect(startX, y - 5, colMid - startX, 8); 
+            // 🔥 Jumlah Sample Uji
+            const totalQty = samples.reduce((sum, s) => sum + (parseInt(s.jumlah_sample_angka) || 0), 0);
+            const satuan = firstSample?.jumlah_sample_satuan || 'Sampel';
+            doc.rect(startX, y - 5, colMid - startX, 8);
             doc.rect(colMid, y - 5, endX - colMid, 8);
-
-            doc.text("Jumlah Sample Uji : " + (qCount > 0 ? qCount + " sampel" : "____"), startX + 2, y);
-
+            doc.text(`Jumlah Sample Uji : ${totalQty > 0 ? totalQty + ' ' + satuan : '____'}`, startX + 2, y);
             let checkX = startX + 45;
-            drawBox(checkX, y); 
-            doc.text("Cukup", checkX + 5, y);
+            drawBox(checkX, y); doc.text("Cukup", checkX + 5, y);
+            drawBox(checkX + 20, y); doc.text("Tidak Cukup", checkX + 25, y);
 
-            drawBox(checkX + 20, y); 
-            doc.text("Tidak Cukup", checkX + 25, y);
-
-            doc.text("Sample dibuat pada : ________________", colMid + 2, y);
+            // 🔥 Tanggal Pengambilan Sample
+            const tglSample = firstSample?.tanggal_pengambilan ? formatDate(firstSample.tanggal_pengambilan) : '';
+            doc.text(`Sample dibuat pada : ${tglSample || '________________'}`, colMid + 2, y);
             y += 8;
 
-            drawRow("Kemasan Sample : ________________", "", "Asal Sample : ________________",);
+            // 🔥 Kemasan dan Asal Sample
+            const kemasan = firstSample?.kemasan_sample || '';
+            const asal = firstSample?.asal_sample || '';
+            drawRow("Kemasan Sample :", kemasan, "Asal Sample :", asal, 8);
             
-            // 🔥 Parameter Pengujian - KOSONGKAN
-            drawRow("Parameter : ", "", "Metode : ________________",);
+            // 🔥 Parameter dan Metode
+            const parameter = firstSample?.parameter || '';
+            const metode = firstSample?.method_at_time || firstSample?.method || '';
+            drawRow("Parameter :", parameter, "Metode :", metode, 8);
 
-            // Sample diambil oleh
+            // 🔥 Sample diambil oleh
+            const diambilOleh = firstSample?.sample_diambil_oleh || 'Pelanggan';
             doc.rect(startX, y - 5, colMid - startX, 15);
             doc.rect(colMid, y - 5, endX - colMid, 15);
             doc.text("Sample diambil oleh :", startX + 2, y);
-            drawBox(startX + 2, y + 7); doc.text("Pelanggan", startX + 7, y + 7);
-            drawBox(startX + 30, y + 7); doc.text("Laboratorium", startX + 35, y + 7);
+            const options = ["Pelanggan", "Laboratorium", "Pihak Ketiga"];
+            let optX = startX + 2;
+            options.forEach((opt, idx) => {
+                const isChecked = diambilOleh.toLowerCase().includes(opt.toLowerCase());
+                drawBox(optX, y + 7);
+                doc.text(opt, optX + 5, y + 7);
+                if (isChecked) {
+                    doc.setFont("helvetica", "bold");
+                    doc.text('✓', optX + 1, y + 7 - 0.5);
+                    doc.setFont("helvetica", "normal");
+                }
+                optX += 35;
+            });
 
-            doc.text("Catatan Lainnya :", colMid + 2, y);
+            // 🔥 Catatan Sample
+            const catatanSample = firstSample?.catatan_sample || '';
+            doc.text(`Catatan Lainnya : ${catatanSample || ''}`, colMid + 2, y);
             y += 15;
             y += 5;
 
-            // --- III. KAJI ULANG PERMINTAAN ---
+            // ========== III. KAJI ULANG PERMINTAAN ==========
             doc.setFont("helvetica", "bold").text("III. KAJI ULANG PERMINTAAN", 17, y);
             y += 7;
 
@@ -1603,22 +1773,18 @@ III. **KAJI ULANG PERMINTAAN**
             doc.rect(startX, y - 5, colMid - startX, boxH * 2);
             doc.rect(colMid, y - 5, endX - colMid, boxH);
             doc.rect(colMid, y - 5 + boxH, endX - colMid, boxH);
-
             doc.text("Catatan :", startX + 2, y);
-
             doc.text("Kontrak Pengujian :", colMid + 2, y);
             drawBox(colMid + 2, y + 7); doc.text("Diperlukan", colMid + 7, y + 7);
             drawBox(colMid + 30, y + 7); doc.text("Tidak Diperlukan", colMid + 35, y + 7);
-
             y += boxH;
             doc.text("Keputusan Kaji Ulang Permintaan Pengujian :", colMid + 2, y);
             drawBox(colMid + 2, y + 7); doc.text("DITERIMA", colMid + 7, y + 7);
             drawBox(colMid + 30, y + 7); doc.text("DITOLAK", colMid + 35, y + 7);
-
             y += boxH; 
-            drawRow("Tanggal Pelaksanaan Pengujian : ____________", "", "Estimasi Tanggal Selesai Pengujian : ____________",);
+            drawRow("Tanggal Pelaksanaan Pengujian : ____________", "", "Estimasi Tanggal Selesai Pengujian : ____________", "");
 
-            // Tanda Tangan
+            // ========== TANDA TANGAN ==========
             y += 5;
             doc.setFont("helvetica", "bold");
             doc.text("Petugas Pendaftaran,", 33, y);
@@ -1633,12 +1799,14 @@ III. **KAJI ULANG PERMINTAAN**
             y += 15;
             doc.text("(....................................................)", 105, y, { align: 'center' });
 
-            doc.save(`Form_Uji_${data.registration_number || 'Export'}.pdf`);
-            showToast('PDF Berhasil Diunduh!', 'success');
+            // ========== SAVE ==========
+            const filename = `Form_Uji_${data.no_permohonan || data.id || 'Export'}.pdf`;
+            doc.save(filename);
+            showToast('PDF Formulir berhasil diunduh!', 'success');
 
         } catch (error) {
-            console.error(error);
-            showToast('Gagal membuat PDF', 'danger');
+            console.error('Error generating PDF:', error);
+            showToast('Gagal membuat PDF: ' + error.message, 'danger');
         }
     };
 
@@ -1685,7 +1853,8 @@ III. **KAJI ULANG PERMINTAAN**
     document.getElementById('updateForm')?.addEventListener('submit', handleUpdate);
 
     // ==================== INITIALIZE ====================
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadSettings(); // <-- TAMBAHKAN INI
         loadSubmissionDetail();
         
         // Bersihkan timeout saat page unload

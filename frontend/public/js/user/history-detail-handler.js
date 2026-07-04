@@ -64,7 +64,7 @@
         
         // Format: /api/file/tipe/nama_file
         // Contoh: /api/file/surat/surat-permohonan-123.pdf
-        const baseUrl = 'http://localhost:5000/api/file';
+        const baseUrl = (window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api').replace('/api', '') + '/api/files';
         return `${baseUrl}/${fileType}/${encodeURIComponent(safeName)}`;
     }
 
@@ -76,7 +76,7 @@
         document.getElementById('errorState').style.display = 'none';
         
         try {
-            const API_URL = 'http://localhost:5000/api';
+            const API_URL = window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api';
             const endpoint = `${API_URL}/user/history/${id}`;
             
             console.log('📡 Fetching:', endpoint);
@@ -362,7 +362,7 @@
         // 🔥 GUNAKAN data.dokumen_tambahan (bukan file_lampiran)
         if (data.dokumen_tambahan) {
             const fileName = normalizeFilename(data.dokumen_tambahan);
-            const fileUrl = buildProtectedFileUrl('lampiran', data.dokumen_tambahan, token);
+            const fileUrl = buildProtectedFileUrl('others', data.dokumen_tambahan, token);
             lampiranStatus = `✅ Terupload: ${fileName}`;
             lampiranActions = `
                 <a href="#" onclick="window.openFileWithToken('${fileUrl}', '${token}'); return false;" class="btn btn-sm btn-outline-primary me-1">Buka</a>
@@ -493,61 +493,84 @@
         }
     };
 
-    // 🔥 FUNGSI DOWNLOAD KUIISIONER PDF
     window.downloadKuisionerPDF = async function() {
         if (!currentSubmissionData || !currentSubmissionData.kuisioner) {
             alert('Data kuisioner tidak ditemukan');
             return;
         }
-        
+
         try {
             const token = window.userToken;
-            const API_URL = 'http://localhost:5000/api';
+            const API_URL = window.__APP_CONFIG__?.API_BASE_URL || '/api';
             const kuisionerId = currentSubmissionData.kuisioner.id;
-            
-            // Tampilkan state loading (bisa pakai sweetalert kalau ada, kita pakai log/alert biasa)
-            console.log('Mengunduh data kuisioner...');
-            
-            // Fetch detail kuisioner
+
+            console.log('📥 Mengunduh data kuisioner ID:', kuisionerId);
+
+            // 1. Ambil detail kuisioner (untuk jawaban & info pemohon)
             const resKuisioner = await fetch(`${API_URL}/kuisioner/${kuisionerId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const dataKuisioner = await resKuisioner.json();
-            
-            if (!dataKuisioner.success) throw new Error('Gagal memuat data kuisioner');
-            
-            const detail = dataKuisioner.data;
-            const jawaban = detail.jawaban || {};
-            const pertanyaan = detail.pertanyaan || [];
-            
-            // Buat PDF
+            if (!resKuisioner.ok) throw new Error(`HTTP ${resKuisioner.status}`);
+            const resultKuisioner = await resKuisioner.json();
+            if (!resultKuisioner.success) throw new Error(resultKuisioner.message || 'Gagal memuat data kuisioner');
+            const detail = resultKuisioner.data;
+
+            // 2. Ambil pertanyaan TERBARU (LENGKAP dengan ID)
+            const resPertanyaan = await fetch(`${API_URL}/kuisioner/public/questions`);
+            if (!resPertanyaan.ok) throw new Error(`HTTP ${resPertanyaan.status} - Gagal memuat pertanyaan`);
+            const resultPertanyaan = await resPertanyaan.json();
+            if (!resultPertanyaan.success) throw new Error(resultPertanyaan.message || 'Gagal memuat pertanyaan');
+            const pertanyaanList = resultPertanyaan.data || []; // [{ id, question_text, ... }]
+
+            // 3. Parsing jawaban
+            let jawaban = {};
+            try {
+                const raw = detail.jawaban_json;
+                if (typeof raw === 'string') {
+                    jawaban = JSON.parse(raw);
+                } else if (typeof raw === 'object' && raw !== null) {
+                    jawaban = raw;
+                }
+                // Normalisasi: jika array, ubah ke object
+                if (Array.isArray(jawaban) && jawaban.length > 0 && jawaban[0].question_id) {
+                    const newJawaban = {};
+                    jawaban.forEach(item => {
+                        newJawaban[item.question_id] = item.answer;
+                    });
+                    jawaban = newJawaban;
+                }
+            } catch (e) {
+                console.warn('⚠️ Gagal parsing jawaban_json:', e);
+            }
+
+            // 4. Buat PDF
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            
+
             doc.setFontSize(18);
             doc.text('Detail Kuisioner Kepuasan', 105, 15, { align: 'center' });
-            
+
             doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
             doc.text('Informasi Pemohon', 14, 25);
-            
+
             doc.setFont(undefined, 'normal');
             doc.setFontSize(10);
             doc.text(`Nama: ${detail.nama_pemohon || '-'}`, 14, 32);
             doc.text(`Instansi: ${detail.nama_instansi || '-'}`, 14, 38);
             doc.text(`Telepon: ${detail.nomor_telepon || '-'}`, 14, 44);
             doc.text(`Tanggal: ${formatDate(detail.created_at)}`, 14, 50);
-            
+
             doc.setFont(undefined, 'bold');
             doc.text('Hasil Penilaian', 14, 62);
-            
+
+            // 🔥 Buat tabel: gunakan ID pertanyaan sebagai key untuk mengambil nilai
             const tableData = [];
-            for (let i = 1; i <= 10; i++) {
-                const nilai = detail[`skor_${i}`] !== undefined ? detail[`skor_${i}`] : (jawaban[i] !== undefined ? jawaban[i] : '-');
-                const label = pertanyaan[i-1] || ('Kriteria ' + i);
-                tableData.push([i, label, nilai]);
-            }
-            
+            pertanyaanList.forEach((q, idx) => {
+                const nilai = jawaban[q.id] !== undefined && jawaban[q.id] !== null ? jawaban[q.id] : '-';
+                tableData.push([idx + 1, q.question_text, nilai]);
+            });
+
             doc.autoTable({
                 startY: 66,
                 head: [['No', 'Kriteria', 'Nilai']],
@@ -560,20 +583,20 @@
                     2: { cellWidth: 30 }
                 }
             });
-            
+
             const finalY = doc.lastAutoTable.finalY + 10;
             doc.setFont(undefined, 'bold');
             doc.text('Saran / Komentar', 14, finalY);
             doc.setFont(undefined, 'normal');
-            
+
             const saranLines = doc.splitTextToSize(detail.saran || '-', 180);
             doc.text(saranLines, 14, finalY + 6);
-            
+
             const filename = 'kuisioner_' + (detail.nama_pemohon || 'pemohon') + '_' + new Date().getTime() + '.pdf';
             doc.save(filename);
-            
+
         } catch (error) {
-            console.error('Error generating PDF:', error);
+            console.error('❌ Error generating PDF:', error);
             alert('Gagal mendownload PDF: ' + error.message);
         }
     };

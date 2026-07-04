@@ -57,14 +57,14 @@ exports.setBulk = async (settings) => {
 
 exports.listBusyPeriods = async () => {
     const [rows] = await db.query(
-        'SELECT * FROM jadwal_sibuk ORDER BY start_date ASC'
+        'SELECT id, tanggal_mulai as start_date, tanggal_selesai as end_date, keterangan as reason, created_at FROM jadwal_sibuk ORDER BY tanggal_mulai ASC'
     );
     return rows;
 };
 
 exports.findBusyPeriodById = async (id) => {
     const [rows] = await db.query(
-        'SELECT * FROM jadwal_sibuk WHERE id = ? LIMIT 1',
+        'SELECT id, tanggal_mulai as start_date, tanggal_selesai as end_date, keterangan as reason, created_at FROM jadwal_sibuk WHERE id = ? LIMIT 1',
         [id]
     );
     return rows[0] || null;
@@ -72,16 +72,16 @@ exports.findBusyPeriodById = async (id) => {
 
 exports.findActiveBusyPeriods = async () => {
     const [rows] = await db.query(
-        `SELECT * FROM jadwal_sibuk 
-         WHERE CURDATE() BETWEEN start_date AND end_date
-         ORDER BY start_date ASC`
+        `SELECT id, tanggal_mulai as start_date, tanggal_selesai as end_date, keterangan as reason, created_at FROM jadwal_sibuk 
+         WHERE CURDATE() BETWEEN tanggal_mulai AND tanggal_selesai
+         ORDER BY tanggal_mulai ASC`
     );
     return rows;
 };
 
 exports.addBusyPeriod = async ({ start_date, end_date, reason }) => {
     const [result] = await db.query(
-        `INSERT INTO jadwal_sibuk (start_date, end_date, reason, created_at)
+        `INSERT INTO jadwal_sibuk (tanggal_mulai, tanggal_selesai, keterangan, created_at)
          VALUES (?, ?, ?, NOW())`,
         [start_date, end_date, reason || null]
     );
@@ -89,12 +89,16 @@ exports.addBusyPeriod = async ({ start_date, end_date, reason }) => {
 };
 
 exports.updateBusyPeriod = async (id, data) => {
-    const allowed = ['start_date', 'end_date', 'reason'];
+    const allowedMap = {
+        'start_date': 'tanggal_mulai',
+        'end_date': 'tanggal_selesai',
+        'reason': 'keterangan'
+    };
     const fields = [];
     const values = [];
-    for (const key of allowed) {
+    for (const [key, dbCol] of Object.entries(allowedMap)) {
         if (data[key] !== undefined) {
-            fields.push(`${key} = ?`);
+            fields.push(`${dbCol} = ?`);
             values.push(data[key]);
         }
     }

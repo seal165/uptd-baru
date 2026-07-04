@@ -31,7 +31,8 @@ if (document.readyState === 'loading') {
 function buildAvatarUrl(avatar) {
     if (!avatar) return '';
     if (avatar.startsWith('http')) return avatar;
-    return `http://localhost:5000${avatar}`;
+    const baseUrl = window.__APP_CONFIG__?.API_BASE_URL.replace('/api', '') || 'http://localhost:5000';
+    return `${baseUrl}${avatar}`;
 }
 
 function syncUserAvatarUI(avatarFromArg) {
@@ -334,7 +335,7 @@ async function collectNotificationsFromApi() {
     const token = localStorage.getItem('token');
     if (!token) return [];
 
-    const apiBase = 'http://localhost:5000/api';
+    const apiBase = window.__APP_CONFIG__?.API_BASE_URL || '/api';
     const headers = { Authorization: `Bearer ${token}` };
 
     const [historyResult, transactionResult, notifResult] = await Promise.allSettled([

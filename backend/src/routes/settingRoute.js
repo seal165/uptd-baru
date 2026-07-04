@@ -24,6 +24,7 @@ router.put(
     settingController.updateSystem
 );
 router.get('/profile', authMiddleware, settingController.getProfileSettings);
+router.put('/profile', authMiddleware, settingController.updateProfileSettings);
 
 // Busy mode
 router.get('/busy-mode', authMiddleware, settingController.getBusyMode);

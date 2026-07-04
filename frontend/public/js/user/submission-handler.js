@@ -1,6 +1,6 @@
 /**
  * UPTD Lab Submission Handler
- * VERSI ASLI + MODE SIBUK + PERBAIKAN MINIMAL SAMPLE + SYNC QUANTITY
+ * VERSI FIX - HIDDEN INPUTS PASTI TERKIRIM
  */
 
 // ==================== FUNGSI GLOBAL ====================
@@ -272,19 +272,12 @@ function updateAll() {
         // Reset semua
         document.getElementById('totalPrice').innerText = 'Rp 0';
         document.getElementById('timeEstimation').innerText = '-';
-        
-        const metodeUji = document.getElementById('metodeUji');
-        if (metodeUji) {
-            metodeUji.value = '';
-            metodeUji.removeAttribute('readonly');
-        }
-        
         document.getElementById('testTypeId').value = '';
         document.getElementById('testCategoryId').value = '';
         document.getElementById('serviceId').value = '';
         document.getElementById('methodAtTime').value = '';
         document.getElementById('priceAtTime').value = '0';
-        
+        document.getElementById('metodeUji').value = '';
         return;
     }
     
@@ -300,46 +293,47 @@ function updateAll() {
     
     console.log('📊 Data dari option:', { price, duration, method, minSampleNumber, unit });
     
-    // 🔥 UPDATE UNIT SATUAN
+    // Update unit
     updateUnitDisplay(unit);
     
     // Cari detail service
     const serviceDetails = getServiceDetails(selectedServiceId);
     
-    // Update hidden inputs
+    // 🔥 UPDATE HIDDEN INPUTS - PASTIKAN TERISI!
     if (serviceDetails) {
         document.getElementById('testTypeId').value = serviceDetails.testTypeId || '';
         document.getElementById('testCategoryId').value = serviceDetails.testCategoryId || '';
-        document.getElementById('serviceId').value = serviceDetails.serviceId || '';
+        document.getElementById('serviceId').value = serviceDetails.serviceId || selectedServiceId;
         document.getElementById('methodAtTime').value = serviceDetails.method || method;
         document.getElementById('priceAtTime').value = serviceDetails.price || price;
+        console.log('✅ Hidden serviceId diisi:', document.getElementById('serviceId').value);
+        console.log('✅ Hidden testTypeId diisi:', document.getElementById('testTypeId').value);
     } else {
+        // Fallback: pakai data dari option langsung
         document.getElementById('serviceId').value = selectedServiceId;
         document.getElementById('methodAtTime').value = method;
         document.getElementById('priceAtTime').value = price;
+        console.log('⚠️ Service details tidak ditemukan, pakai fallback:', selectedServiceId);
     }
     
-    // Update quantity input
+    // Update quantity
     const qtyInput = document.getElementById('qtyInput');
-    const minSampleInfo = document.getElementById('minSampleInfo');
-    
     if (qtyInput) {
         qtyInput.min = minSampleNumber;
         qtyInput.setAttribute('data-min', minSampleNumber);
         qtyInput.value = minSampleNumber;
-        
+        // Update min sample info
+        const minSampleInfo = document.getElementById('minSampleInfo');
         if (minSampleInfo) {
             minSampleInfo.innerHTML = `Minimal: ${minSampleNumber} ${unit}`;
         }
     }
     
-    // 🔥 Update metode uji - isi value, tapi jangan readonly agar user bisa edit
+    // Update metode uji
     const metodeUji = document.getElementById('metodeUji');
     if (metodeUji) {
         metodeUji.value = method;
-        // Hapus readonly jika ada
         metodeUji.removeAttribute('readonly');
-        // Pastikan background putih
         metodeUji.style.background = 'white';
     }
     
@@ -348,11 +342,16 @@ function updateAll() {
     document.getElementById('totalPrice').innerText = 'Rp ' + total.toLocaleString('id-ID');
     document.getElementById('timeEstimation').innerText = duration + ' Hari';
     
-    // 🔥 SYNC QUANTITY KE FORM
+    // Sync quantity ke form
     syncQuantityToForm();
     
     // Update estimasi selesai
     updateCompletionDate(duration);
+    
+    // 🔥 LOG FINAL UNTUK DEBUG
+    console.log('🔍 [DEBUG] Setelah updateAll - serviceId:', document.getElementById('serviceId').value);
+    console.log('🔍 [DEBUG] testTypeId:', document.getElementById('testTypeId').value);
+    console.log('🔍 [DEBUG] priceAtTime:', document.getElementById('priceAtTime').value);
 }
 
 // 🔴 FUNGSI UPDATE ESTIMASI SELESAI
@@ -482,6 +481,50 @@ function validateFiles() {
     return isValid;
 }
 
+// ==================== FUNGSI UNTUK FORCE SET HIDDEN SEBELUM SUBMIT ====================
+function forceSetHiddenBeforeSubmit() {
+    const activeSelect = getActiveSelect();
+    if (!activeSelect || !activeSelect.value) {
+        console.warn('⚠️ Tidak ada select aktif sebelum submit');
+        return;
+    }
+    
+    const selectedOption = activeSelect.options[activeSelect.selectedIndex];
+    const serviceId = activeSelect.value;
+    const price = selectedOption.getAttribute('data-price') || '0';
+    const method = selectedOption.getAttribute('data-method') || '';
+    
+    // Force set hidden inputs
+    document.getElementById('serviceId').value = serviceId;
+    document.getElementById('priceAtTime').value = price;
+    document.getElementById('methodAtTime').value = method;
+    
+    // Jika testTypeId masih kosong, coba dapatkan dari serviceDetails
+    if (!document.getElementById('testTypeId').value) {
+        const serviceDetails = getServiceDetails(serviceId);
+        if (serviceDetails) {
+            document.getElementById('testTypeId').value = serviceDetails.testTypeId || '';
+            document.getElementById('testCategoryId').value = serviceDetails.testCategoryId || '';
+        } else {
+            // Fallback: coba dari nama select
+            const selectName = activeSelect.name;
+            if (selectName === 'uji_bahan') {
+                document.getElementById('testTypeId').value = '1';
+            } else if (selectName === 'uji_konstruksi') {
+                document.getElementById('testTypeId').value = '2';
+            }
+        }
+    }
+    
+    console.log('🔄 [SUBMIT] Force set hidden:', {
+        serviceId: document.getElementById('serviceId').value,
+        testTypeId: document.getElementById('testTypeId').value,
+        testCategoryId: document.getElementById('testCategoryId').value,
+        priceAtTime: document.getElementById('priceAtTime').value,
+        methodAtTime: document.getElementById('methodAtTime').value,
+    });
+}
+
 // ==================== INISIALISASI ====================
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('✅ Handler siap - Versi database + Mode Sibuk');
@@ -584,55 +627,89 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     });
     
-    // Handle form submit
-    document.getElementById('applicationForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        if (!validateFiles()) return;
-        if (this.dataset.submitting === 'true') return;
-        
-        this.dataset.submitting = 'true';
-        const submitButton = this.querySelector('button[type="submit"]');
-        const originalText = submitButton.innerHTML;
-        submitButton.disabled = true;
-        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
-        
-        try {
-            const formData = new FormData(this);
+    // 🔥 HANDLE FORM SUBMIT (PERBAIKAN UTAMA)
+    const form = document.getElementById('applicationForm');
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
             
-            // 🔥 TAMBAHKAN LOG UNTUK MELIHAT FILE APA SAJA YANG DIKIRIM
-            for (let pair of formData.entries()) {
-                console.log('📤 FormData:', pair[0], pair[1] instanceof File ? pair[1].name : pair[1]);
+            // 🔥 FORCE SET HIDDEN INPUTS SEBELUM VALIDASI
+            forceSetHiddenBeforeSubmit();
+            
+            if (!validateFiles()) return;
+            if (this.dataset.submitting === 'true') return;
+            
+            this.dataset.submitting = 'true';
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
+            
+            try {
+                const formData = new FormData(this);
+                
+                // 🔥 LOG SEMUA FORM DATA (TERMASUK HIDDEN)
+                console.log('📤 [SUBMIT] FormData yang dikirim:');
+                for (let pair of formData.entries()) {
+                    console.log(`  ${pair[0]}:`, pair[1] instanceof File ? pair[1].name : pair[1]);
+                }
+                
+                // Pastikan hidden inputs tetap ada di FormData (jika kosong, set default)
+                if (!formData.has('service_id') || !formData.get('service_id')) {
+                    const activeSelect = getActiveSelect();
+                    if (activeSelect && activeSelect.value) {
+                        formData.set('service_id', activeSelect.value);
+                        console.log('🔄 [SUBMIT] Set service_id via FormData:', activeSelect.value);
+                    }
+                }
+                if (!formData.has('test_type_id') || !formData.get('test_type_id')) {
+                    const activeSelect = getActiveSelect();
+                    if (activeSelect) {
+                        const selectName = activeSelect.name;
+                        const testTypeId = selectName === 'uji_bahan' ? '1' : '2';
+                        formData.set('test_type_id', testTypeId);
+                        console.log('🔄 [SUBMIT] Set test_type_id via FormData:', testTypeId);
+                    }
+                }
+                if (!formData.has('price_at_time') || formData.get('price_at_time') === '0') {
+                    const activeSelect = getActiveSelect();
+                    if (activeSelect && activeSelect.value) {
+                        const selectedOption = activeSelect.options[activeSelect.selectedIndex];
+                        const price = selectedOption.getAttribute('data-price') || '0';
+                        formData.set('price_at_time', price);
+                        console.log('🔄 [SUBMIT] Set price_at_time via FormData:', price);
+                    }
+                }
+                
+                const response = await fetch('/user/submission', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error('❌ Response not OK:', text);
+                    throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
+                }
+                
+                const result = await response.json();
+                console.log('📦 Result:', result);
+                
+                if (result.success) {
+                    window.location.href = '/user/history?success=true&message=Pengajuan+berhasil+dikirim';
+                } else {
+                    alert('Error: ' + (result.message || 'Gagal mengirim pengajuan'));
+                }
+            } catch (error) {
+                console.error('❌ Error:', error);
+                alert('Terjadi kesalahan saat mengirim data: ' + error.message);
+            } finally {
+                this.dataset.submitting = 'false';
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
             }
-            
-            const response = await fetch('/user/submission', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                const text = await response.text();
-                console.error('❌ Response not OK:', text);
-                throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
-            }
-            
-            const result = await response.json();
-            console.log('📦 Result:', result);
-            
-            if (result.success) {
-                window.location.href = '/user/history?success=true&message=Pengajuan+berhasil+dikirim';
-            } else {
-                alert('Error: ' + (result.message || 'Gagal mengirim pengajuan'));
-            }
-        } catch (error) {
-            console.error('❌ Error:', error);
-            alert('Terjadi kesalahan saat mengirim data: ' + error.message);
-        } finally {
-            this.dataset.submitting = 'false';
-            submitButton.disabled = false;
-            submitButton.innerHTML = originalText;
-        }
-    });
+        });
+    }
     
     // Initial update
     setTimeout(updateAll, 500);

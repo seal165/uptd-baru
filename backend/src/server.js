@@ -1,4 +1,10 @@
-// backend/server.js
+// ===== TAMBAHKAN INI UNTUK DIAGNOSA =====
+console.log('🚀 [1] Server.js mulai di-load');
+
+require('./src/config/env'); // validasi env paling awal
+
+console.log('🚀 [2] Selesai load env (jika sampai sini, env aman)');
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');

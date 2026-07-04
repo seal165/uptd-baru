@@ -4,9 +4,7 @@
     'use strict';
 
     // ==================== KONFIGURASI ====================
-    const API_BASE_URL = window.location.origin === 'http://localhost:3000' 
-        ? 'http://localhost:5000/api' 
-        : '/api';
+    const API_BASE_URL = window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api';
     const ITEMS_PER_PAGE = 10;
     
     let currentPage = 1;
@@ -47,9 +45,9 @@
             if (startDate) params.append('start_date', startDate);
             if (endDate) params.append('end_date', endDate);
 
-            console.log('📡 Fetching kuisioner:', `${API_BASE_URL}/admin/kuisioner?${params}`);
+            console.log('📡 Fetching kuisioner:', `${API_BASE_URL}/kuisioner?${params}`);
             
-            const response = await fetch(`${API_BASE_URL}/admin/kuisioner?${params}`, {
+            const response = await fetch(`${API_BASE_URL}/kuisioner?${params}`, {
                 headers: { 'Authorization': `Bearer ${getToken()}` }
             });
 
@@ -63,8 +61,8 @@
             console.log('📦 Kuisioner response:', result);
 
             if (result.success) {
-                allKuisioner = result.data.kuisioner || [];
-                totalData = result.data.total || 0;
+                allKuisioner = Array.isArray(result.data) ? result.data : [];
+                totalData = result.pagination?.total || 0;
                 updateTable(allKuisioner);
                 updatePagination();
                 
@@ -85,9 +83,9 @@
             if (startDate) params.append('start_date', startDate);
             if (endDate) params.append('end_date', endDate);
             
-            console.log('📡 Fetching stats:', `${API_BASE_URL}/admin/kuisioner/stats?${params}`);
+            console.log('📡 Fetching stats:', `${API_BASE_URL}/kuisioner/stats?${params}`);
             
-            const response = await fetch(`${API_BASE_URL}/admin/kuisioner/stats?${params}`, {
+            const response = await fetch(`${API_BASE_URL}/kuisioner/stats?${params}`, {
                 headers: { 'Authorization': `Bearer ${getToken()}` }
             });
 
@@ -381,7 +379,7 @@
     // ==================== PREVIEW KUISIONER ====================
     async function previewKuisioner(id) {
         try {
-            const response = await fetch(`${API_BASE_URL}/admin/kuisioner/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/kuisioner/${id}`, {
                 headers: { 'Authorization': `Bearer ${getToken()}` }
             });
             
@@ -406,26 +404,30 @@
                 let html = '';
                 let total = 0, count = 0;
                 
-                pertanyaanList.forEach((qText, idx) => {
-                    const nilai = skorList[idx] !== undefined ? skorList[idx] : null;
-                    if (nilai !== null && !isNaN(nilai)) {
-                        total += nilai;
-                        count++;
+                if (pertanyaanList.length === 0) {
+                    html = '<tr><td colspan="3" class="text-center text-muted">Belum ada nilai</td></tr>';
+                } else {
+                    pertanyaanList.forEach((qText, idx) => {
+                        const nilai = skorList[idx] !== undefined ? skorList[idx] : null;
+                        const validNilai = (nilai !== null && !isNaN(nilai));
+                        
+                        if (validNilai) {
+                            total += nilai;
+                            count++;
+                        }
+                        
                         html += `
                             <tr>
                                 <td>${idx + 1}</td>
                                 <td>${qText}</td>
                                 <td class="text-center">
-                                    <span class="nilai-box nilai-${nilai}">${nilai}</span>
+                                    ${validNilai ? `<span class="nilai-box nilai-${nilai}">${nilai}</span>` : '<span class="text-muted">-</span>'}
                                 </td>
                             </tr>
                         `;
-                    }
-                });
-                
-                if (html === '') {
-                    html = '<tr><td colspan="3" class="text-center text-muted">Belum ada nilai</td></tr>';
+                    });
                 }
+                
                 tbody.innerHTML = html;
                 
                 // Tampilkan total & rata-rata
@@ -662,18 +664,18 @@
             if (startDate) params.append('start_date', startDate);
             if (endDate) params.append('end_date', endDate);
             
-            const response = await fetch(`${API_BASE_URL}/admin/kuisioner?${params}`, {
+            const response = await fetch(`${API_BASE_URL}/kuisioner?${params}`, {
                 headers: { 'Authorization': `Bearer ${getToken()}` }
             });
             
             const result = await response.json();
             
-            if (!result.success || !result.data.kuisioner) {
-                showAlert('Tidak ada data untuk diexport', 'warning');
+            if (!result.success || (!Array.isArray(result.data) && !result.data.kuisioner)) {
+                showAlert('Gagal mengunduh data excel', 'danger');
                 return;
             }
-            
-            const data = result.data.kuisioner;
+
+            const data = Array.isArray(result.data) ? result.data : result.data.kuisioner;
             
             const headers = [
                 'No', 'Nama Pemohon', 'Instansi', 'Telepon',

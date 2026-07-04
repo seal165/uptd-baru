@@ -13,6 +13,9 @@
 <link rel="stylesheet" href="/css/admin-style.css?v=2">
 <!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    window.__APP_CONFIG__ = <%- JSON.stringify(locals.appConfig || {}).replace(/</g, '\\u003c') %>;
+</script>
 
 <!-- 
     🔥 Pass settings from server to JavaScript using data attribute.

@@ -34,7 +34,8 @@ exports.getJadwalSibuk = async (req, res, next) => {
 exports.getPublicBusySchedule = async (req, res, next) => {
     try {
         const active = await settingModel.getByKey('busy_mode_active');
-        const periods = await settingModel.findActiveBusyPeriods();
+        // 🔥 Ambil SEMUA periode sibuk (termasuk yang sudah lewat)
+        const periods = await settingModel.listBusyPeriods();
         return success(res, 'Jadwal sibuk publik', {
             active: active === '1' || active === 'true',
             data: periods

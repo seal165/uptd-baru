@@ -39,7 +39,7 @@
             <a href="/user/profile" class="user-profile-sidebar <%= currentPage === 'profile' ? 'active' : '' %>" style="text-decoration: none; display: flex; align-items: center; width: 100%; transition: all 0.3s;">
                 <div class="user-avatar-sidebar">
                     <% if (user?.avatar) { %>
-                        <img src="<%= user.avatar.startsWith('http') ? user.avatar : ('http://localhost:5000' + user.avatar) %>" alt="Avatar" class="avatar-image" />
+                        <img src="<%= user.avatar.startsWith('http') ? user.avatar : ((typeof backendUrl !== 'undefined' ? backendUrl : 'http://localhost:5000') + user.avatar) %>" alt="Avatar" class="avatar-image" />
                     <% } else { %>
                         <i class="fas fa-user-circle"></i>
                     <% } %>

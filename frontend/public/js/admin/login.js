@@ -58,7 +58,7 @@ async function handleLogin(event) {
     buttonSpinner.style.display = 'inline-block';
 
     try {
-        const API_URL = 'http://localhost:5000/api';
+        const API_URL = window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api';
         
         console.log('📡 Mencoba login admin dengan:', email);
 

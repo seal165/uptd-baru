@@ -4,7 +4,7 @@
     'use strict';
 
     // ==================== KONFIGURASI ====================
-    const API_BASE_URL = 'http://localhost:5000/api';
+    const API_BASE_URL = window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api';
     
     // Ambil ID dari URL
     const pathParts = window.location.pathname.split('/');
@@ -75,6 +75,90 @@
         window.location.href = '/admin/login';
         return;
     }
+
+    // ==================== FUNGSI AKSES FILE DENGAN TOKEN ====================
+    function normalizeFilename(filename) {
+        if (!filename || typeof filename !== 'string') return '';
+        return filename.split('/').pop().split('\\').pop().trim();
+    }
+
+    function buildProtectedFileUrl(fileType, filename) {
+        const safeFilename = normalizeFilename(filename);
+        if (!safeFilename) return '#';
+        const baseUrl = window.__APP_CONFIG__?.API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
+        return `${baseUrl}/api/files/${fileType}/${encodeURIComponent(safeFilename)}`;
+    }
+
+    async function fetchProtectedFileBlob(url, token) {
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.status === 401) {
+                alert('Sesi habis. Silakan login ulang.');
+                window.location.href = '/admin/login';
+                return null;
+            }
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.error('❌ Server Error Response:', errorData);
+                alert('Gagal mengambil file dari server (Error ' + response.status + ')');
+                return null;
+            }
+
+            const blob = await response.blob();
+            if (blob.size < 50) {
+                const text = await blob.text();
+                if (text.includes('not found') || text.includes('error')) {
+                    alert('File di server rusak atau tidak terbaca.');
+                    return null;
+                }
+            }
+            return blob;
+        } catch (error) {
+            console.error('❌ Network Error:', error);
+            alert('Terjadi kesalahan jaringan saat mengambil file.');
+            return null;
+        }
+    }
+
+    window.downloadFileWithToken = async function(url, token, filename) {
+        try {
+            const blob = await fetchProtectedFileBlob(url, token);
+            if (!blob) return;
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename || 'file';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+            console.log('✅ Download selesai:', filename);
+        } catch (error) {
+            console.error('❌ Error download:', error);
+            alert('Gagal download file: ' + error.message);
+        }
+    };
+
+    window.openFileWithToken = async function(url, token) {
+        const newTab = window.open('', '_blank');
+        if (!newTab) return alert('Izinkan popup browser!');
+        newTab.document.write('<html><body style="background:#333;color:white;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;">Memproses dokumen...</body></html>');
+        try {
+            const blob = await fetchProtectedFileBlob(url, token);
+            if (!blob) { newTab.close(); return; }
+            const blobUrl = window.URL.createObjectURL(blob);
+            newTab.location.href = blobUrl;
+            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+        } catch (e) {
+            newTab.close();
+            alert('Gagal memuat file.');
+        }
+    };
 
     // ==================== LOAD DATA ====================
     async function loadInvoiceDetail() {
@@ -162,9 +246,9 @@
         
         // Ambil nama pemohon dari database
         const namaPemohon = data.nama_instansi || data.nama_pemohon || '....................................';
-        const alamat = data.alamat || '....................................';
+        const alamat = data.alamat_pemohon || data.alamat || '....................................';
         const telepon = data.nomor_telepon || '....................................';
-        const kodePengujian = '....................................';
+        const kodePengujian = '' || '...........................................';
         
         const printContent = `
         <!DOCTYPE html>
@@ -394,11 +478,11 @@
             }
             
             // 2. COMPANY INFO
-            if (elements.companyName) elements.companyName.textContent = data.nama_instansi || '-';
+            if (elements.companyName) elements.companyName.textContent = data.nama_instansi || data.nama_pemohon || '-';
             if (elements.picName) elements.picName.textContent = data.nama_pemohon ? `UP: ${data.nama_pemohon}` : '-';
-            if (elements.companyAddress) elements.companyAddress.textContent = data.alamat || '-';
+            if (elements.companyAddress) elements.companyAddress.textContent = data.alamat_pemohon || data.alamat || '-';
             if (elements.companyPhone) elements.companyPhone.textContent = data.nomor_telepon || '-';
-            if (elements.companyEmail) elements.companyEmail.textContent = data.email || '-';
+            if (elements.companyEmail) elements.companyEmail.textContent = data.email_pemohon || data.email || '-';
             
             // 3. PAYMENT DETAILS
             if (elements.skrdNumber) elements.skrdNumber.textContent = data.no_permohonan || '-';
@@ -540,13 +624,8 @@
         const proofSection = document.getElementById('paymentProofSection');
         if (!proofSection) return;
         
-        console.log('💳 Data pembayaran:', {
-            bukti_pembayaran_1: data.bukti_pembayaran_1,
-            bukti_pembayaran_2: data.bukti_pembayaran_2,
-            status_pembayaran: data.status_pembayaran
-        });
-        
         const finalStatuses = ['Lunas', 'Selesai', 'Dibatalkan'];
+        const token = getToken();
         
         const proofs = [];
         if (data.bukti_pembayaran_1) {
@@ -571,17 +650,23 @@
             let html = '<h6 class="text-uppercase text-muted small fw-bold mb-3 border-bottom pb-2">Bukti Pembayaran dari User:</h6>';
             
             proofs.forEach((proof) => {
-                const fileName = proof.file.split('/').pop() || proof.title;
+                const fileName = normalizeFilename(proof.file);
+                const fileUrl = buildProtectedFileUrl('payment', proof.file);
                 const uploadDate = proof.date ? formatDateTime(proof.date) : '-';
-                const proofUrl = 'http://localhost:5000/uploads/payment/' + proof.file;
                 
-                let actionButtonsHtml = '<button class="btn btn-outline-primary action-btn" onclick="window.viewProofUrl(\'' + proofUrl + '\')" title="Lihat Bukti"><i class="fas fa-external-link-alt"></i></button>';
+                let actionButtonsHtml = `
+                    <button onclick="window.openFileWithToken('${fileUrl}', '${token}')" class="btn btn-outline-primary action-btn" title="Lihat Bukti">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="window.downloadFileWithToken('${fileUrl}', '${token}', '${fileName}')" class="btn btn-outline-success action-btn ms-1" title="Download">
+                        <i class="fas fa-download"></i>
+                    </button>
+                `;
                 
                 if (proof.isLatest && !finalStatuses.includes(data.status_pembayaran)) {
                     if (data.status_pembayaran === 'Menunggu SKRD Upload' || data.status_pembayaran === 'Menunggu Verifikasi') {
-                        window.currentProofUrl = proofUrl;
-                        actionButtonsHtml += '<button class="btn btn-success action-btn ms-2" onclick="window.showVerifyModal()" title="Verifikasi & Input Nominal"><i class="fas fa-check"></i></button>';
-                        actionButtonsHtml += '<button class="btn btn-outline-danger action-btn ms-2" onclick="window.rejectProof()" title="Tolak"><i class="fas fa-times"></i></button>';
+                        actionButtonsHtml += `<button class="btn btn-success action-btn ms-2" onclick="window.showVerifyModal()" title="Verifikasi & Input Nominal"><i class="fas fa-check"></i></button>`;
+                        actionButtonsHtml += `<button class="btn btn-outline-danger action-btn ms-2" onclick="window.rejectProof()" title="Tolak"><i class="fas fa-times"></i></button>`;
                     }
                 }
                 
@@ -630,45 +715,59 @@
             status_pembayaran: data.status_pembayaran
         });
         
-        // 🔥 TAMBAHKAN: Jika status Dibatalkan, sembunyikan upload section
+        // Jika status Dibatalkan, sembunyikan upload dan tampilkan info
         if (data.status_pembayaran === 'Dibatalkan') {
             skrdFileSection.style.display = 'block';
             skrdUploadSection.style.display = 'none';
-            
-            if (skrdFilename) {
-                skrdFilename.textContent = 'Pengajuan dibatalkan';
-            }
-            
-            if (skrdUploadedAt) {
-                skrdUploadedAt.textContent = 'Status: Dibatalkan';
-            }
-            
+            if (skrdFilename) skrdFilename.textContent = 'Pengajuan dibatalkan';
+            if (skrdUploadedAt) skrdUploadedAt.textContent = 'Status: Dibatalkan';
             if (downloadSkrdBtn) {
-                downloadSkrdBtn.href = '#';
-                downloadSkrdBtn.classList.add('disabled');
-                downloadSkrdBtn.setAttribute('onclick', 'return false;');
+                downloadSkrdBtn.style.display = 'none';
             }
             return;
         }
         
-        // CEK KOLOM DATABASE YANG TERSEDIA
+        // Jika ada file SKRD
         if (data.skrd_file) {
-            const fileUrl = `http://localhost:5000/uploads/skrd/${data.skrd_file}`;
+            const token = getToken();
+            const fileUrl = buildProtectedFileUrl('skrd', data.skrd_file);
+            const fileName = data.skrd_filename || data.skrd_file || 'SKRD.pdf';
             
             skrdFileSection.style.display = 'block';
             skrdUploadSection.style.display = 'none';
             
-            if (skrdFilename) skrdFilename.textContent = data.skrd_filename || data.skrd_file || 'SKRD.pdf';
+            if (skrdFilename) skrdFilename.textContent = fileName;
             if (skrdUploadedAt) {
                 const uploadDate = data.skrd_uploaded_at ? formatDateTime(data.skrd_uploaded_at) : '-';
                 skrdUploadedAt.textContent = `Diunggah: ${uploadDate}`;
             }
+            
             if (downloadSkrdBtn) {
-                downloadSkrdBtn.href = fileUrl;
-                downloadSkrdBtn.setAttribute('download', data.skrd_filename || data.skrd_file);
+                // Ganti href dengan onclick
+                downloadSkrdBtn.style.display = 'inline-block';
+                downloadSkrdBtn.onclick = function(e) {
+                    e.preventDefault();
+                    window.downloadFileWithToken(fileUrl, token, fileName);
+                };
                 downloadSkrdBtn.classList.remove('disabled');
+                downloadSkrdBtn.href = '#';
             }
+            
+            // Tambahkan tombol "Buka" jika belum ada
+            const actionDiv = downloadSkrdBtn?.parentElement;
+            if (actionDiv && !actionDiv.querySelector('.open-skrd-btn')) {
+                const openBtn = document.createElement('button');
+                openBtn.className = 'btn btn-sm btn-outline-primary fw-bold px-3 me-2 open-skrd-btn';
+                openBtn.innerHTML = '<i class="fas fa-eye me-1"></i>Buka';
+                openBtn.onclick = function(e) {
+                    e.preventDefault();
+                    window.openFileWithToken(fileUrl, token);
+                };
+                downloadSkrdBtn.parentNode.insertBefore(openBtn, downloadSkrdBtn);
+            }
+            
         } else {
+            // Belum ada SKRD
             skrdFileSection.style.display = 'none';
             skrdUploadSection.style.display = 'block';
         }
@@ -1106,7 +1205,7 @@
         if (window.currentProofUrl) {
             window.open(window.currentProofUrl, '_blank');
         } else if (invoiceData?.bukti_pembayaran_1) {
-            const fileUrl = `http://localhost:5000/uploads/payment/${invoiceData.bukti_pembayaran_1}`;
+            const fileUrl = `${window.__APP_CONFIG__?.API_BASE_URL?.replace('/api', '') || ''}/uploads/payment/${invoiceData.bukti_pembayaran_1}`;
             window.open(fileUrl, '_blank');
         } else {
             showAlert('File bukti pembayaran tidak ditemukan', 'warning');

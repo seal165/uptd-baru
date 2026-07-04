@@ -101,11 +101,21 @@ exports.getProfile = async (req, res, next) => {
 
 exports.updateProfile = async (req, res, next) => {
     try {
+        if (req.body.email) {
+            const existingUser = await userModel.findByEmail(req.body.email);
+            if (existingUser && existingUser.id !== req.user.id) {
+                return error(res, 400, 'Email sudah digunakan oleh akun lain');
+            }
+        }
+
         const affected = await userModel.updateProfile(req.user.id, req.body);
         if (!affected) return error(res, 400, 'Tidak ada perubahan');
+        
         const data = await userModel.findById(req.user.id);
         return success(res, 'Profile diupdate', data);
-    } catch (err) { next(err); }
+    } catch (err) { 
+        next(err); 
+    }
 };
 
 exports.uploadAvatar = async (req, res, next) => {
@@ -122,4 +132,24 @@ exports.deleteAvatar = async (req, res, next) => {
         await userModel.updateAvatar(req.user.id, null);
         return success(res, 'Avatar dihapus');
     } catch (err) { next(err); }
+};
+
+// =========== CHANGE PASSWORD (self) ===========
+exports.changePassword = async (req, res, next) => {
+    try {
+        const { current_password, new_password } = req.body;
+
+        const user = await userModel.findByIdWithPassword(req.user.id);
+        if (!user) return error(res, 404, 'User tidak ditemukan');
+
+        const isMatch = await bcrypt.compare(current_password, user.password);
+        if (!isMatch) return error(res, 400, 'Password saat ini salah');
+
+        const hashedPassword = await bcrypt.hash(new_password, env.BCRYPT_SALT_ROUNDS);
+        await userModel.updatePassword(req.user.id, hashedPassword);
+
+        return success(res, 'Password berhasil diubah');
+    } catch (err) {
+        next(err);
+    }
 };

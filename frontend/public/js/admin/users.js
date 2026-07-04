@@ -4,18 +4,19 @@
     'use strict';
 
     // ==================== KONFIGURASI ====================
-    const API_BASE_URL = window.location.origin === 'http://localhost:3000' 
-        ? 'http://localhost:5000/api' 
-        : '/api';
+    // 🔥 PASTIKAN BASE URL SELALU BENAR
+    const API_BASE_URL = (window.__APP_CONFIG__?.API_BASE_URL || window.location.origin + '/api' || 'http://localhost:5000/api').replace(/\/+$/, '');
     const ITEMS_PER_PAGE = 10;
     
     // State
     let currentPage = 1;
-    let currentStatus = '';
+    let currentRole = '';
     let searchTerm = '';
     let totalData = 0;
     let allUsers = [];
     let searchTimeout;
+
+    console.log('🔗 [USER MANAGEMENT] API_BASE_URL:', API_BASE_URL);
 
     // ==================== CEK TOKEN ====================
     function getToken() {
@@ -33,18 +34,22 @@
             const params = new URLSearchParams({
                 page: currentPage,
                 limit: ITEMS_PER_PAGE,
-                status: currentStatus,
+                role: currentRole,
                 search: searchTerm
             });
 
-            console.log('📡 Fetching users:', `${API_BASE_URL}/admin/users?${params}`);
+            const url = `${API_BASE_URL}/users?${params}`;
+            console.log('📡 [USER MANAGEMENT] Fetching:', url);
             
-            const response = await fetch(`${API_BASE_URL}/admin/users?${params}`, {
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${getToken()}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                credentials: 'include' // Kirim cookie jika ada
             });
+
+            console.log('📡 [USER MANAGEMENT] Response status:', response.status);
 
             if (response.status === 401) {
                 localStorage.removeItem('token');
@@ -52,21 +57,31 @@
                 return;
             }
 
+            if (response.status === 404) {
+                console.error('❌ [USER MANAGEMENT] Endpoint 404 – pastikan backend berjalan dan route /users tersedia.');
+                showAlert('Endpoint tidak ditemukan. Periksa koneksi ke server.', 'danger');
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const result = await response.json();
-            console.log('📦 Users response:', result);
+            console.log('📦 [USER MANAGEMENT] Response:', result);
 
             if (result.success) {
-                allUsers = result.data.users || [];
-                totalData = result.data.total || 0;
-                updateStats(result.data.stats);
+                allUsers = Array.isArray(result.data) ? result.data : [];
+                totalData = result.pagination?.total || result.data?.total || 0;
+                updateStats({ total: totalData });
                 updateUsersTable(allUsers);
                 updatePagination();
             } else {
                 showAlert(result.message || 'Gagal memuat data', 'danger');
             }
         } catch (error) {
-            console.error('Error:', error);
-            showAlert('Gagal terhubung ke server', 'danger');
+            console.error('❌ [USER MANAGEMENT] Error:', error);
+            showAlert('Gagal terhubung ke server: ' + error.message, 'danger');
         } finally {
             const loadingRow = document.getElementById('loadingRow');
             if (loadingRow) {
@@ -111,24 +126,24 @@
         emptyState.style.display = 'none';
 
         const rowsHtml = users.map(user => {
-            const initials = (user.name || 'NA').substring(0, 2).toUpperCase();
-            const statusClass = user.status === 'active' ? 'badge-soft-success' : 
-                            user.status === 'pending' ? 'badge-soft-warning' : 'badge-soft-secondary';
-            const statusIcon = user.status === 'active' ? 'fa-check-circle' : 
-                            user.status === 'pending' ? 'fa-clock' : 'fa-ban';
-            const statusText = user.status === 'active' ? 'Terverifikasi' : 
-                            user.status === 'pending' ? 'Menunggu Verifikasi' : 'Nonaktif';
+            const fullName = user.full_name || 'NA';
+            const initials = fullName.substring(0, 2).toUpperCase();
+            
+            const statusClass = user.role === 'admin' ? 'badge-soft-success' : 'badge-soft-primary';
+            const statusIcon = user.role === 'admin' ? 'fa-user-shield' : 'fa-user';
+            const statusText = user.role === 'admin' ? 'Admin' : 'Pelanggan';
             
             const totalTrans = parseInt(user.total_transactions) || 0;
             
             // 🔥 AVATAR: tampilkan gambar jika ada, fallback ke inisial
             let avatarUrl = user.avatar;
             if (avatarUrl && !avatarUrl.startsWith('http') && avatarUrl !== 'null' && avatarUrl !== '') {
-                avatarUrl = avatarUrl.startsWith('/') ? `http://localhost:5000${avatarUrl}` : `http://localhost:5000/${avatarUrl}`;
+                const assetBaseUrl = window.__APP_CONFIG__?.assetBaseUrl || 'http://localhost:5000';
+                avatarUrl = avatarUrl.startsWith('/') ? `${assetBaseUrl}${avatarUrl}` : `${assetBaseUrl}/${avatarUrl}`;
             }
             
             const avatarHtml = (avatarUrl && avatarUrl !== 'null' && avatarUrl !== '')
-                ? `<img src="${avatarUrl}" alt="${user.name}" class="avatar-img me-3 shadow-sm" style="width:40px;height:40px;border-radius:50%;object-fit:cover;background:white;border:2px solid #e9ecef;" onerror="this.outerHTML='<div class=\\'avatar-initials bg-primary-subtle me-3\\'>${initials}</div>'">`
+                ? `<img src="${avatarUrl}" alt="${fullName}" class="avatar-img me-3 shadow-sm" style="width:40px;height:40px;border-radius:50%;object-fit:cover;background:white;border:2px solid #e9ecef;" onerror="this.outerHTML='<div class=\\'avatar-initials bg-primary-subtle me-3\\'>${initials}</div>'">`
                 : `<div class="avatar-initials bg-primary-subtle me-3">${initials}</div>`;
             
             return `
@@ -140,10 +155,10 @@
                         <div class="d-flex align-items-center">
                             ${avatarHtml}
                             <div>
-                                <div class="fw-bold text-dark">${user.name}</div>
+                                <div class="fw-bold text-dark">${fullName}</div>
                                 <div class="small text-muted">
-                                    ${user.company ? 
-                                        `<i class="fas fa-building me-1"></i> ${user.company}` : 
+                                    ${user.nama_instansi ? 
+                                        `<i class="fas fa-building me-1"></i> ${user.nama_instansi}` : 
                                         '<i class="fas fa-user me-1"></i> Perorangan'
                                     }
                                 </div>
@@ -154,7 +169,7 @@
                     <td>
                         <div class="d-flex flex-column">
                             <span class="text-dark small">${user.email}</span>
-                            <span class="text-muted small">${user.phone || '-'}</span>
+                            <span class="text-muted small">${user.nomor_telepon || '-'}</span>
                         </div>
                     </td>
 
@@ -210,14 +225,11 @@
     function initFilters() {
         document.querySelectorAll('.filter-badge').forEach(badge => {
             badge.addEventListener('click', function() {
-                const status = this.dataset.status;
-                
+                const role = this.dataset.role;
                 document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
                 
-                currentStatus = status;
-                currentPage = 1;
-                loadUsers();
+                filterByRole(role);
             });
         });
 
@@ -231,13 +243,13 @@
         });
     }
 
-    function filterByStatus(status) {
-        currentStatus = status;
+    function filterByRole(role) {
+        currentRole = role;
         currentPage = 1;
         loadUsers();
         
         document.querySelectorAll('.filter-badge').forEach(badge => {
-            if (badge.dataset.status === status) {
+            if (badge.dataset.role === role) {
                 badge.classList.add('active');
             } else {
                 badge.classList.remove('active');
@@ -247,9 +259,17 @@
 
     function resetFilters() {
         document.getElementById('searchInput').value = '';
-        currentStatus = '';
-        searchTerm = '';
+        currentRole = '';
         currentPage = 1;
+        
+        document.querySelectorAll('.filter-badge').forEach(badge => {
+            if (badge.dataset.role === '') {
+                badge.classList.add('active');
+            } else {
+                badge.classList.remove('active');
+            }
+        });
+        
         loadUsers();
     }
 
@@ -304,77 +324,18 @@
         loadUsers();
     }
 
-    // ==================== VIEW DETAIL (TIDAK DIGUNAKAN LAGI - PAKAI LINK) ====================
-    // Function ini bisa dihapus atau dikomentar karena sekarang pakai link
-    /*
-    async function viewUser(userId) {
-        try {
-            console.log('🔍 Viewing user:', userId);
-            
-            const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/detail`, {
-                headers: { 'Authorization': `Bearer ${getToken()}` }
-            });
-
-            const result = await response.json();
-            console.log('📦 User detail:', result);
-
-            if (result.success) {
-                const user = result.data;
-                
-                // Tampilkan di modal detail
-                document.getElementById('detailAvatar').textContent = (user.name || 'NA').substring(0, 2).toUpperCase();
-                document.getElementById('detailName').textContent = user.name;
-                document.getElementById('detailEmail').textContent = user.email;
-                document.getElementById('detailPhone').textContent = user.phone || '-';
-                document.getElementById('detailCompany').textContent = user.company || '-';
-                document.getElementById('detailAddress').textContent = user.address || '-';
-                document.getElementById('detailJoined').textContent = formatDate(user.created_at);
-                document.getElementById('detailTransactions').textContent = user.total_transactions || 0;
-                document.getElementById('detailPayments').textContent = formatRupiah(user.total_payments || 0);
-                
-                const statusClass = user.status === 'active' ? 'badge-soft-success' : 
-                                   user.status === 'pending' ? 'badge-soft-warning' : 'badge-soft-secondary';
-                const statusText = user.status === 'active' ? 'Terverifikasi' : 
-                                  user.status === 'pending' ? 'Menunggu Verifikasi' : 'Nonaktif';
-                
-                document.getElementById('detailStatus').className = `badge ${statusClass}`;
-                document.getElementById('detailStatus').textContent = statusText;
-
-                // Load transactions
-                const transactionsHtml = (user.recent_submissions || []).map(t => `
-                    <tr>
-                        <td>${formatDate(t.created_at)}</td>
-                        <td>${t.registration_number || '-'}</td>
-                        <td>${t.test_name || '-'}</td>
-                        <td><span class="badge ${getStatusClass(t.status)}">${t.status}</span></td>
-                        <td>${formatRupiah(t.amount || 0)}</td>
-                    </tr>
-                `).join('') || '<tr><td colspan="5" class="text-center py-3">Belum ada transaksi</td></tr>';
-                
-                document.getElementById('detailTransactionsBody').innerHTML = transactionsHtml;
-                
-                new bootstrap.Modal(document.getElementById('detailModal')).show();
-            } else {
-                showAlert(result.message || 'Gagal memuat detail user', 'danger');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            showAlert('Gagal memuat detail user', 'danger');
-        }
-    }
-    */
-
     // ==================== USER ACTIONS ====================
     async function verifyUser(userId) {
         if (!confirm('Verifikasi user ini?')) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/verify`, {
+            const response = await fetch(`${API_BASE_URL}/users/${userId}/verify`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${getToken()}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                credentials: 'include'
             });
 
             const result = await response.json();
@@ -395,12 +356,13 @@
         if (!confirm('Hapus user ini? Tindakan ini tidak dapat dibatalkan.')) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+            const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${getToken()}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                credentials: 'include'
             });
 
             const result = await response.json();
@@ -430,12 +392,12 @@
         ];
         
         const rows = allUsers.map(user => [
-            user.name,
-            user.email,
-            user.phone || '-',
-            user.company || '-',
-            user.address || '-',
-            user.status === 'active' ? 'Aktif' : user.status === 'pending' ? 'Pending' : 'Nonaktif',
+            user.full_name || user.name || '-',
+            user.email || '-',
+            user.nomor_telepon || user.phone || '-',
+            user.nama_instansi || user.company || '-',
+            user.alamat || user.address || '-',
+            user.role === 'admin' ? 'Admin' : 'Pelanggan',
             formatDate(user.created_at),
             user.total_transactions || 0
         ]);
@@ -501,9 +463,8 @@
 
     // ==================== EXPOSE FUNCTIONS TO WINDOW ====================
     window.loadUsers = loadUsers;
-    window.filterByStatus = filterByStatus;
+    window.filterByRole = filterByRole;
     window.resetFilters = resetFilters;
-    // window.viewUser = viewUser; // DIKOMENTAR KARENA PAKAI LINK
     window.verifyUser = verifyUser;
     window.deleteUser = deleteUser;
     window.exportToExcel = exportToExcel;

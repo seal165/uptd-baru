@@ -16,9 +16,8 @@ const authMiddleware = (req, res, next) => {
             token = req.cookies.token;
         } else if (req.cookies?.admin_token) {
             token = req.cookies.admin_token;
-        } else if (req.query?.token) {
-            token = req.query.token;
         }
+        // Catatan: token TIDAK boleh diterima dari req.query (URL) karena tersimpan di log & browser history
 
         if (!token) {
             return res.status(401).json({

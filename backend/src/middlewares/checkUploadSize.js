@@ -1,42 +1,69 @@
+// backend/src/middlewares/checkUploadSize.js
 const fs = require('fs');
+const settingModel = require('../models/settingModel');
 
-const checkUploadSize = (req, res, next) => {
-    // Ambil dari req.settings yang sudah tanpa prefix
-    const maxSize = (parseFloat(req.settings?.max_upload_size) || 5) * 1024 * 1024;
-    let exceeded = false;
-    let filesToDelete = [];
-
-    if (req.file) {
-        if (req.file.size > maxSize) {
-            exceeded = true;
+/**
+ * Middleware untuk mengecek ukuran file upload.
+ * Batas maksimal diambil dari setting 'max_upload_size' di database.
+ * Jika tidak ada, default 5MB.
+ */
+const checkUploadSize = async (req, res, next) => {
+    try {
+        // 🔥 Ambil batas upload dari database secara langsung
+        let maxSizeMB = await settingModel.getByKey('max_upload_size');
+        if (!maxSizeMB) {
+            maxSizeMB = '5'; // default 5MB
         }
-        filesToDelete.push(req.file.path);
-    } else if (req.files) {
-        Object.keys(req.files).forEach(fieldname => {
-            req.files[fieldname].forEach(file => {
-                if (file.size > maxSize) {
-                    exceeded = true;
-                }
-                filesToDelete.push(file.path);
-            });
-        });
-    }
+        const maxSizeBytes = parseInt(maxSizeMB) * 1024 * 1024;
 
-    if (exceeded) {
-        filesToDelete.forEach(filepath => {
-            try {
-                if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
-            } catch (e) {
-                console.error('Failed to delete file:', filepath, e);
+        let exceeded = false;
+        let filesToDelete = [];
+
+        // Cek single file upload
+        if (req.file) {
+            if (req.file.size > maxSizeBytes) {
+                exceeded = true;
             }
-        });
-        return res.status(400).json({
-            success: false,
-            message: `Ukuran file melebihi batas maksimal (${(maxSize / (1024 * 1024)).toFixed(0)}MB)`
-        });
-    }
+            filesToDelete.push(req.file.path);
+        }
 
-    next();
+        // Cek multiple file upload
+        if (req.files) {
+            Object.keys(req.files).forEach(fieldname => {
+                req.files[fieldname].forEach(file => {
+                    if (file.size > maxSizeBytes) {
+                        exceeded = true;
+                    }
+                    filesToDelete.push(file.path);
+                });
+            });
+        }
+
+        // Jika ada file yang melebihi batas, hapus file yang sudah terupload
+        if (exceeded) {
+            filesToDelete.forEach(filepath => {
+                try {
+                    if (fs.existsSync(filepath)) {
+                        fs.unlinkSync(filepath);
+                        console.log(`🗑️ Deleted oversized file: ${filepath}`);
+                    }
+                } catch (e) {
+                    console.error('❌ Failed to delete file:', filepath, e);
+                }
+            });
+
+            return res.status(413).json({
+                success: false,
+                message: `Ukuran file melebihi batas maksimal (${maxSizeMB}MB)`
+            });
+        }
+
+        next();
+    } catch (err) {
+        console.error('❌ Error in checkUploadSize:', err);
+        // Jika gagal ambil setting, tetap lanjut (biarkan multer menangani)
+        next();
+    }
 };
 
 module.exports = checkUploadSize;

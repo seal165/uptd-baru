@@ -138,21 +138,19 @@
     // ==================== LOAD DATA MODE SIBUK ====================
     async function loadModeSibuk() {
         try {
-            const API_URL = window.location.origin === 'http://localhost:3000' 
-                ? 'http://localhost:5000/api' 
-                : '/api';
-                
+            const API_URL = (window.__APP_CONFIG__ && window.__APP_CONFIG__.apiUrl) || '/api';
             const response = await fetch(`${API_URL}/public/busy-schedule`);
             const result = await response.json();
             if (result.success) {
+                const payload = result.data;
                 modeSibuk = {
-                    active: result.active || false,
-                    periods: result.data || []
+                    active: payload.active || false,
+                    periods: payload.data || []
                 };
                 console.log('✅ Mode sibuk loaded:', modeSibuk);
-                
-                // Hitung ulang estimasi setelah data loaded
                 hitungEstimasi();
+            } else {
+                console.warn('⚠️ Mode sibuk API response not success:', result);
             }
         } catch (error) {
             console.error('❌ Error loading mode sibuk:', error);

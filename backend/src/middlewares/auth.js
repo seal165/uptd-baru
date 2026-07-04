@@ -3,52 +3,43 @@ const bcrypt = require('bcrypt');
 const db = require('../config/database');
 
 const authMiddleware = (req, res, next) => {
-    // LOG SEMUA HEADER UNTUK DEBUG
-    console.log('========== AUTH MIDDLEWARE ==========');
-    console.log('Headers:', req.headers);
-    console.log('Authorization header:', req.headers['authorization']);
-    console.log('Query token:', req.query.token); // TAMBAHKAN INI UNTUK DEBUG
-    
-    // Bisa dari header Authorization, dari cookie, atau dari query parameter
-    const token = req.headers['authorization']?.split(' ')[1] || 
-                  req.cookies?.admin_token || 
-                  req.cookies?.token ||
-                  req.query.token; // TAMBAHKAN INI - ambil token dari URL
-    
-    console.log('Token extracted:', token ? token.substring(0, 20) + '...' : 'TIDAK ADA');
-    
+    // Ambil token dari header Authorization atau cookie (TIDAK dari URL query)
+    const token = req.headers['authorization']?.split(' ')[1] ||
+                  req.cookies?.admin_token ||
+                  req.cookies?.token;
+
     if (!token) {
-        console.log('❌ Token tidak ditemukan!');
         return res.status(401).json({
             success: false,
             message: 'Token tidak ditemukan'
         });
     }
-    
+
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'rahasia banget');
-        console.log('✅ Token valid untuk user:', decoded.id);
+        const secret = process.env.JWT_ACCESS_SECRET;
+        if (!secret) {
+            return res.status(500).json({ success: false, message: 'Konfigurasi server tidak valid' });
+        }
+        const decoded = jwt.verify(token, secret);
         req.user = decoded;
         req.userId = decoded.id;
         req.userRole = decoded.role || 'admin';
         next();
     } catch (error) {
-        console.error('❌ Token verification error:', error.message);
-        
         if (error.name === 'TokenExpiredError') {
             return res.status(401).json({
                 success: false,
                 message: 'Token expired'
             });
         }
-        
+
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({
                 success: false,
                 message: 'Token tidak valid'
             });
         }
-        
+
         return res.status(401).json({
             success: false,
             message: 'Terjadi kesalahan verifikasi token'
@@ -227,10 +218,14 @@ authMiddleware.login = async (req, res) => {
         }
         
         // Buat token JWT
+        const secret = process.env.JWT_ACCESS_SECRET;
+        if (!secret) {
+            return res.status(500).json({ success: false, message: 'Konfigurasi server tidak valid' });
+        }
         const token = jwt.sign(
             { id: user.id, email: user.email, role: user.role },
-            process.env.JWT_SECRET || 'rahasia banget',
-            { expiresIn: '7d' }
+            secret,
+            { expiresIn: process.env.JWT_ACCESS_EXPIRES || '3h' }
         );
         
         // KIRIM RESPONSE DENGAN FORMAT YANG SEDERHANA
@@ -276,21 +271,23 @@ authMiddleware.verifyAdmin = (req, res, next) => {
 
 // Middleware optional (tanpa error)
 authMiddleware.optional = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1] || 
-                  req.cookies?.admin_token || 
-                  req.cookies?.token ||
-                  req.query.token; // TAMBAHKAN JUGA DI SINI
-    
+    const token = req.headers['authorization']?.split(' ')[1] ||
+                  req.cookies?.admin_token ||
+                  req.cookies?.token;
+
     if (token) {
         try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'rahasia banget');
-            req.user = decoded;
-            req.userId = decoded.id;
+            const secret = process.env.JWT_ACCESS_SECRET;
+            if (secret) {
+                const decoded = jwt.verify(token, secret);
+                req.user = decoded;
+                req.userId = decoded.id;
+            }
         } catch (error) {
-            // Abaikan error
+            // Abaikan error — middleware optional tidak blokir request
         }
     }
-    
+
     next();
 };
 

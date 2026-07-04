@@ -102,7 +102,7 @@ const dashboardData = locals.dashboardData || {};
                             // Format tanggal
                             let formattedDate = '-';
                             try {
-                                const sourceDate = sub.dateSubmitted || sub.tgl_permohonan || sub.created_at;
+                                const sourceDate = sub.created_at;
                                 if (sourceDate) {
                                     const date = new Date(sourceDate);
                                     if (!Number.isNaN(date.getTime())) {
@@ -128,10 +128,10 @@ const dashboardData = locals.dashboardData || {};
                             }
                         %>
                         <tr>
-                            <td><strong>#<%= sub.appId || sub.no_urut || sub.id %></strong></td>
+                            <td><strong>#<%= sub.no_permohonan || sub.id %></strong></td>
                             <td>
-                                <strong><%= sub.projectName || sub.nama_proyek || sub.material || '-' %></strong><br>
-                                <small style="color: var(--secondary)"><%= sub.serviceType || sub.kode_pengujian || '-' %></small>
+                                <strong><%= sub.nama_proyek || '-' %></strong><br>
+                                <small style="color: var(--secondary)"><%= sub.total_samples || '-' %></small>
                             </td>
                             <td>
                                 <span class="status-badge <%= statusClass %>">
@@ -177,6 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update chart dengan data dari server
         const weeklyActivity = dashboardData.weeklyActivity || [0,0,0,0,0,0,0];
+        const chartLabels = dashboardData.chartLabels || ['H-6', 'H-5', 'H-4', 'H-3', 'H-2', 'H-1', 'Hari Ini'];
         
         const ctx = document.getElementById('submissionsChartCanvas').getContext('2d');
         
@@ -188,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
         new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+                labels: chartLabels,
                 datasets: [{
                     label: 'Jumlah Pengajuan',
                     data: weeklyActivity,

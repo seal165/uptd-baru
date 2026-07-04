@@ -10,9 +10,16 @@ const { success, error } = require('../utils/responseHelper');
 
 exports.list = async (req, res, next) => {
     try {
-        const { status, limit, offset } = req.query;
-        const data = await paymentModel.list({ status, limit, offset });
-        return success(res, 'Daftar SKRD', data);
+        const { status, limit, page = 1, search, start_date, end_date } = req.query;
+        const offset = (parseInt(page, 10) - 1) * parseInt(limit || 20, 10);
+        
+        const [data, stats, total] = await Promise.all([
+            paymentModel.list({ status, limit, offset, search, start_date, end_date }),
+            paymentModel.stats(),
+            paymentModel.count({ status, search, start_date, end_date })
+        ]);
+
+        return success(res, 'Daftar SKRD', { invoices: data, stats, total });
     } catch (err) {
         next(err);
     }
@@ -38,8 +45,7 @@ exports.create = async (req, res, next) => {
                 user_id: submission.user_id,
                 title: 'SKRD Telah Terbit',
                 message: `Tagihan untuk ${submission.nama_proyek} sudah terbit. Silakan lakukan pembayaran.`,
-                type: 'skrd',
-                related_id: id
+                type: 'skrd'
             });
         }
         return success(res, 'SKRD berhasil dibuat', { id }, 201);
@@ -61,13 +67,44 @@ exports.updateStatus = async (req, res, next) => {
 
 exports.uploadFile = async (req, res, next) => {
     try {
-        if (!req.file) return error(res, 400, 'File SKRD belum diupload');
-        const affected = await paymentModel.update(req.params.id, {
-            file_skrd: req.file.filename
+        // 1. Validasi file
+        if (!req.file) {
+            return error(res, 400, 'File SKRD belum diupload');
+        }
+
+        // 2. Validasi ID
+        const paymentId = parseInt(req.params.id);
+        if (isNaN(paymentId) || paymentId <= 0) {
+            return error(res, 400, 'ID SKRD tidak valid');
+        }
+
+        // 3. Cek apakah SKRD (payment) ada
+        const payment = await paymentModel.findById(paymentId);
+        if (!payment) {
+            return error(res, 404, 'SKRD tidak ditemukan');
+        }
+
+        console.log(`📄 Upload SKRD untuk payment ID: ${paymentId}, file: ${req.file.filename}`);
+
+        // 4. Update data SKRD
+        const affected = await paymentModel.update(paymentId, {
+            skrd_file: req.file.filename,
+            skrd_filename: req.file.originalname,
+            skrd_uploaded_at: new Date(),
+            skrd_uploaded_by: req.user.id
         });
-        if (!affected) return error(res, 404, 'SKRD tidak ditemukan');
-        return success(res, 'File SKRD diupload', { filename: req.file.filename });
+
+        if (!affected) {
+            return error(res, 500, 'Gagal menyimpan data SKRD');
+        }
+
+        return success(res, 'File SKRD berhasil diupload', {
+            filename: req.file.filename,
+            originalname: req.file.originalname
+        });
+
     } catch (err) {
+        console.error('❌ Error upload SKRD:', err);
         next(err);
     }
 };
@@ -101,8 +138,7 @@ exports.uploadPaymentProof = async (req, res, next) => {
         await notificationModel.createAdmin({
             title: 'Bukti Pembayaran Diupload',
             message: `${payment.nama_pemohon} mengupload bukti pembayaran`,
-            type: 'payment',
-            related_id: payment.id
+            href: `/admin/skrd/${payment.id}`
         });
 
         return success(res, 'Bukti pembayaran diupload, menunggu verifikasi');
@@ -113,21 +149,35 @@ exports.uploadPaymentProof = async (req, res, next) => {
 
 exports.verifyPayment = async (req, res, next) => {
     try {
-        const payment = await paymentModel.findById(req.params.id);
-        if (!payment) return error(res, 404, 'SKRD tidak ditemukan');
+        const paymentId = req.params.id;
+        const { paid_amount, paid_date, notes } = req.body;
 
-        await paymentModel.updateStatus(req.params.id, 'Lunas');
-        await submissionModel.updateStatus(payment.submission_id, 'Lunas');
+        // Ambil data payment saat ini
+        const payment = await paymentModel.findById(paymentId);
+        if (!payment) return error(res, 404, 'Payment tidak ditemukan');
 
-        await notificationModel.createUser({
-            user_id: payment.user_id,
-            title: 'Pembayaran Diverifikasi',
-            message: `Pembayaran untuk ${payment.nama_proyek} sudah dikonfirmasi`,
-            type: 'payment_verified',
-            related_id: payment.id
+        const totalTagihan = parseFloat(payment.total_tagihan) || 0;
+        const sudahDibayar = parseFloat(payment.jumlah_dibayar) || 0;
+        const newPaidAmount = sudahDibayar + parseFloat(paid_amount);
+        const sisaTagihan = totalTagihan - newPaidAmount;
+
+        // Tentukan status baru
+        let newStatus = 'Belum Lunas';
+        if (sisaTagihan <= 0) {
+            newStatus = 'Lunas';
+        } else {
+            newStatus = 'Belum Lunas';
+        }
+
+        // Update payment
+        await paymentModel.update(paymentId, {
+            jumlah_dibayar: newPaidAmount,
+            status_pembayaran: newStatus,
+            bukti_pembayaran_notes: notes ? `${payment.bukti_pembayaran_notes || ''}\n[${new Date().toLocaleDateString()}] Verifikasi: Rp ${paid_amount} - ${notes}` : payment.bukti_pembayaran_notes,
+            updated_at: new Date()
         });
 
-        return success(res, 'Pembayaran terverifikasi');
+        return success(res, 'Pembayaran berhasil diverifikasi', { status: newStatus, sisa: sisaTagihan });
     } catch (err) {
         next(err);
     }
@@ -145,8 +195,7 @@ exports.rejectProof = async (req, res, next) => {
             user_id: payment.user_id,
             title: 'Bukti Pembayaran Ditolak',
             message: `Bukti pembayaran ditolak: ${catatan || 'Mohon upload ulang'}`,
-            type: 'payment_rejected',
-            related_id: payment.id
+            type: 'payment_rejected'
         });
 
         return success(res, 'Bukti pembayaran ditolak');
@@ -164,8 +213,7 @@ exports.sendReminder = async (req, res, next) => {
             user_id: payment.user_id,
             title: 'Pengingat Pembayaran',
             message: `Mohon segera selesaikan pembayaran untuk ${payment.nama_proyek}`,
-            type: 'payment_reminder',
-            related_id: payment.id
+            type: 'payment_reminder'
         });
 
         return success(res, 'Reminder terkirim');

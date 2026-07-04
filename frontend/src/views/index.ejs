@@ -4,7 +4,7 @@
         <header class="hero">
             <div class="container">
                 <div class="hero-wrapper">
-                    <!-- ... (Bagian Hero tetap sama seperti kode Anda) ... -->
+
                     <div class="hero-text">
                         <span class="badge-white">LP-1676-IDN (SNI ISO/IEC 17025:2017)</span>
                         <h1>UPTD Pengujian Bahan, Konstruksi Bangunan dan Informasi Konstruksi</h1>
@@ -21,11 +21,11 @@
                         <img src="/img/gedung-uptd.jpeg" alt="Gedung UPTD PUPR Banten">
                         <div class="img-accent"></div>
                     </div>
+
                 </div>
             </div>
         </header>
 
-        <!-- TAMBAHKAN CSS UNTUK POP-UP (MODAL) DI SINI -->
         <style>
             .step-card {
                 cursor: pointer;
@@ -36,7 +36,6 @@
                 box-shadow: 0 10px 20px rgba(0,0,0,0.1);
             }
             
-            /* Modal Styles */
             .modal-overlay {
                 display: none; 
                 position: fixed; 
@@ -47,15 +46,20 @@
                 height: 100%; 
                 background-color: rgba(0, 0, 0, 0.5); 
                 backdrop-filter: blur(3px);
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
             }
             
             .modal-content {
                 background-color: #fff;
-                margin: 10% auto; 
+                margin: auto; 
                 padding: 30px;
                 border-radius: 12px;
-                width: 90%;
+                width: 100%;
                 max-width: 600px;
+                max-height: 90vh;
+                overflow-y: auto;
                 box-shadow: 0 15px 30px rgba(0,0,0,0.2);
                 position: relative;
                 animation: modalFadeIn 0.3s ease;
@@ -83,7 +87,7 @@
             }
 
             .modal-title {
-                color: #047857; /* Warna primary menyesuaikan */
+                color: #047857;
                 margin-top: 0;
                 margin-bottom: 15px;
                 border-bottom: 2px solid #e2e8f0;
@@ -104,16 +108,14 @@
                 color: #475569;
             }
         </style>
-
         <section id="layanan" class="section bg-light">
             <div class="container">
-                <div class="text-center">
+                <div class="text-center" style="padding-top: 4px;">
                     <span class="section-subtitle">Layanan Pengujian</span>
                     <h2 class="section-title">Ruang Lingkup & Tarif</h2>
                 </div>
 
                 <div class="steps-container">
-                    <!-- Tambahkan onclick pada masing-masing card -->
                     <div class="step-card" onclick="openModal('modal-1')">
                         <div class="step-icon-box"><i class="fas fa-file-alt"></i></div>
                         <div>
@@ -158,15 +160,127 @@
                     </div>
                 </div>
 
-                <!-- ... (Bagian Cards Grid Akreditasi & Pricing Table tetap sama seperti kode Anda) ... -->
+                <div class="cards-grid">
+                    <div class="card" style="border-top: 4px solid #16a34a;">
+                        <h3 style="color: #16a34a;"><i class="fas fa-check-circle"></i> Terakreditasi KAN</h3>
+                        <p>Parameter yang sudah masuk ruang lingkup akreditasi:</p>
+                        <ul class="check-list">
+                            <% if (typeof params !=='undefined' && params.accredited) { %>
+                                <% params.accredited.forEach(item=> { %>
+                                    <li>
+                                        <%= item %>
+                                    </li>
+                                    <% }) %>
+                                        <% } %>
+                        </ul>
+                    </div>
+
+                    <div class="card" style="border-top: 4px solid #ca8a04;">
+                        <h3 style="color: #ca8a04;"><i class="fas fa-exclamation-circle"></i> Belum Terakreditasi KAN
+                        </h3>
+                        <p>Layanan pengujian lainnya yang tersedia (dalam proses pengembangan ruang lingkup):</p>
+                        <ul class="check-list" style="color: #64748B;">
+                            <% if (typeof params !=='undefined' && params.nonAccredited) { %>
+                                <% params.nonAccredited.forEach(item=> { %>
+                                    <li>
+                                        <%= item %>
+                                    </li>
+                                    <% }) %>
+                                        <% } %>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="pricing-card" style="margin-top: 40px;">
+                    <h3 class="text-center mb-3">Tarif Retribusi (Sampel)</h3>
+                    <table class="pricing-table">
+                        <thead>
+                            <tr>
+                                <th>Jenis Pengujian</th>
+                                <th>Satuan</th>
+                                <th>Harga (Rp)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (typeof prices !=='undefined' ) { %>
+                                <% prices.forEach(item=> { %>
+                                    <tr>
+                                        <td>
+                                            <%= item.item %>
+                                        </td>
+                                        <td>
+                                            <%= item.unit %>
+                                        </td>
+                                        <td>Rp <%= item.price %>
+                                        </td>
+                                    </tr>
+                                    <% }) %>
+                                        <% } %>
+                        </tbody>
+                    </table>
+
+                    <div style="text-align: right; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                        <a href="/estimasi"
+                            style="color: #2563eb; font-weight: 600; text-decoration: none; font-size: 0.95rem;">
+                            Lihat Estimasi Pengujian <i class="fas fa-arrow-right" style="margin-left: 5px;"></i>
+                        </a>
+                    </div>
+                </div>
 
             </div>
         </section>
 
-        <!-- ... (Bagian Profil tetap sama seperti kode Anda) ... -->
+        <section id="profil" class="section">
+            <div class="container">
+                <div class="text-center">
+                    <span class="section-subtitle">Tentang Kami</span>
+                    <h2 class="section-title">Sekilas Profil</h2>
+                </div>
 
-        <!-- KUMPULAN HTML POP-UP (MODAL) -->
-        
+                <div class="cards-grid" style="align-items: stretch; margin-bottom: 40px;">
+                    <div class="card text-center" style="padding: 40px 30px;">
+                        <h3>Dinas PUPR Prov. Banten</h3>
+                        <p class="mb-3 text-primary font-weight-bold">Induk Organisasi</p>
+                        <p style="color: #555; line-height: 1.6;">
+                            Merupakan unsur pelaksana urusan pemerintahan yang menjadi kewenangan daerah provinsi di
+                            bidang pekerjaan umum dan penataan ruang.
+                        </p>
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px dashed #eee;">
+                            <p style="font-size: 0.9rem; color: #888;">
+                                <i class="fas fa-map-pin"></i> Kota Serang, Kawasan Pusat, Jl. Syekh Moh. Nawawi
+                                Albantani, Serang Regency, Banten KP3B
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="card text-center" style="padding: 40px 30px;">
+                        <h3>UPTD Pengujian Bahan Kontruksi Bangunan & Informasi Kontruksi</h3>
+                        <p class="mb-3 text-primary font-weight-bold">Unit Pelaksana Teknis</p>
+                        <p style="color: #555; line-height: 1.6;">
+                            Melaksanakan kegiatan teknis operasional di bidang pengujian bahan dan konstruksi bangunan,
+                            serta pengelolaan peralatan berat.
+                        </p>
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px dashed #eee;">
+                            <p style="font-size: 0.9rem; color: #888;">
+                                <i class="fas fa-map-pin"></i> Jalan Bhayangkara No.21, Cipocok Jaya, Serang, Banten
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center;">
+                    <p style="color: #64748b; margin-bottom: 20px; font-size: 1.05rem;">
+                        Ingin mengetahui sejarah, struktur organisasi, dan lokasi detail kami?
+                    </p>
+                    <a href="/profile" class="btn-auth-base"
+                        style="background: var(--primary); color: white; border: none; text-decoration: none; padding: 12px 40px; box-shadow: 0 4px 15px rgba(4, 120, 87, 0.3);">
+                        Lihat Profil Lengkap & Lokasi <i class="fas fa-arrow-right" style="margin-left: 8px;"></i>
+                    </a>
+                </div>
+
+            </div>
+        </section>
+
         <!-- Modal 1: Permohonan -->
         <div id="modal-1" class="modal-overlay">
             <div class="modal-content">
@@ -267,21 +381,17 @@
             </div>
         </div>
 
-        <!-- SCRIPT UNTUK MENJALANKAN POP-UP (MODAL) -->
         <script>
-            // Fungsi untuk membuka modal
             function openModal(modalId) {
-                document.getElementById(modalId).style.display = "block";
-                document.body.style.overflow = "hidden"; // Mencegah scrolling pada background
+            document.getElementById(modalId).style.display = "flex";
+                document.body.style.overflow = "hidden";
             }
 
-            // Fungsi untuk menutup modal
             function closeModal(modalId) {
                 document.getElementById(modalId).style.display = "none";
-                document.body.style.overflow = "auto"; // Mengembalikan scrolling
+                document.body.style.overflow = "auto";
             }
 
-            // Menutup modal jika area luar (overlay) di-klik
             window.onclick = function(event) {
                 if (event.target.classList.contains('modal-overlay')) {
                     event.target.style.display = "none";
@@ -290,4 +400,4 @@
             }
         </script>
 
-<%- include('layout/footer') %>
+        <%- include('layout/footer') %>

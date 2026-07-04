@@ -2,15 +2,17 @@
  * Controller untuk submission (pengajuan pengujian).
  */
 const submissionModel = require('../models/submissionModel');
+const submissionSampleModel = require('../models/submissionSampleModel');
 const notificationModel = require('../models/notificationModel');
 const { success, error, paginated } = require('../utils/responseHelper');
+const db = require('../config/database');
 
 exports.list = async (req, res, next) => {
     try {
-        const { status, search, page = 1, limit = 20 } = req.query;
+        const { status, search, user_id, start_date, end_date, test_type, test_category, sort, page = 1, limit = 20 } = req.query;
         const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
-        const data = await submissionModel.list({ status, search, limit, offset });
-        const total = await submissionModel.count({ status });
+        const data = await submissionModel.list({ status, search, user_id, start_date, end_date, test_type, test_category, sort, limit, offset });
+        const total = await submissionModel.count({ status, user_id, search, start_date, end_date, test_type, test_category });
         return paginated(res, 'Daftar submission', data, {
             page: parseInt(page, 10),
             limit: parseInt(limit, 10),
@@ -26,6 +28,52 @@ exports.detail = async (req, res, next) => {
     try {
         const data = await submissionModel.findById(req.params.id);
         if (!data) return error(res, 404, 'Submission tidak ditemukan');
+
+        // 🔥 Timpa data user dengan yang terbaru dari tabel users
+        if (data.user_id) {
+            const userModel = require('../models/userModel');
+            const user = await userModel.findById(data.user_id);
+            if (user) {
+                data.nama_pemohon = user.full_name || data.nama_pemohon;
+                data.email_pemohon = user.email || data.email_pemohon;
+                data.nomor_telepon = user.nomor_telepon || data.nomor_telepon;
+                data.nama_instansi = user.nama_instansi || data.nama_instansi;
+                data.alamat_pemohon = user.alamat || data.alamat_pemohon;
+            }
+        }
+
+        // ========== AMBIL SAMPLES ==========
+        const db = require('../config/database');
+        const [samples] = await db.query(
+            `SELECT s.*, 
+                    c.category_name, 
+                    t.type_name, 
+                    sv.service_name 
+             FROM submission_samples s 
+             LEFT JOIN test_categories c ON c.id = s.test_category_id 
+             LEFT JOIN test_types t ON t.id = s.test_type_id 
+             LEFT JOIN services sv ON sv.id = s.service_id
+             WHERE s.submission_id = ?`,
+            [req.params.id]
+        );
+        data.samples = samples;
+        console.log(`📦 Samples ditemukan: ${samples.length} item`);
+
+        // ========== AMBIL PAYMENT ==========
+        const paymentModel = require('../models/paymentModel');
+        const payments = await paymentModel.findBySubmissionId(req.params.id);
+        data.payment = payments.length > 0 ? payments[0] : null;
+
+        // ========== AMBIL KUIISIONER ==========
+        const kuisionerModel = require('../models/kuisionerModel');
+        const kuisioner = await kuisionerModel.findBySubmissionId(req.params.id);
+        data.kuisioner = kuisioner || null;
+
+        // ========== AMBIL LAPORAN ==========
+        const reportModel = require('../models/reportModel');
+        const reports = await reportModel.findBySubmissionId(req.params.id);
+        data.report = reports && reports.length > 0 ? reports[0] : null;
+
         return success(res, 'Detail submission', data);
     } catch (err) {
         next(err);
@@ -34,26 +82,116 @@ exports.detail = async (req, res, next) => {
 
 exports.create = async (req, res, next) => {
     try {
+        // 1. Ambil service_id dari dropdown (uji_bahan atau uji_konstruksi)
+        let serviceId = req.body.service_id; // dari hidden input
+        if (!serviceId) {
+            // Jika hidden input kosong, ambil dari dropdown
+            serviceId = req.body.uji_bahan || req.body.uji_konstruksi || null;
+        }
+
+        // 2. Jika serviceId masih kosong, kita bisa tolak atau lanjutkan tanpa sample
+        if (!serviceId) {
+            console.warn('⚠️ Tidak ada service_id, sample tidak akan disimpan');
+            // Tapi kita tetap lanjutkan submission utama
+        }
+
+        // 3. Cari detail service dari database berdasarkan serviceId
+        let serviceDetail = null;
+        if (serviceId) {
+            const [rows] = await db.query(
+                `SELECT s.*, tc.category_name, tt.type_name 
+                 FROM services s
+                 LEFT JOIN test_categories tc ON tc.id = s.category_id
+                 LEFT JOIN test_types tt ON tt.id = s.test_type_id
+                 WHERE s.id = ?`,
+                [serviceId]
+            );
+            serviceDetail = rows[0] || null;
+        }
+
+        // 4. Siapkan payload submission utama (tetap sama)
         const payload = {
             ...req.body,
+            no_permohonan: req.body.nomor_permohonan || req.body.no_permohonan || null,
+            email_pemohon: req.body.email || null, // <-- TAMBAHKAN INI
             user_id: req.user.id,
             file_surat_permohonan: req.files?.surat_permohonan?.[0]?.filename || null,
             file_ktp: req.files?.scan_ktp?.[0]?.filename || null,
             dokumen_tambahan: req.files?.lampiran_pendukung?.[0]?.filename || null
         };
-        const id = await submissionModel.create(payload);
 
-        // Notifikasi admin
+        // 5. Simpan submission utama
+        const id = await submissionModel.create(payload);
+        console.log('✅ Submission ID:', id);
+
+        // 6. Siapkan data sample dari form + serviceDetail
+        let jenisSample = null;
+        if (req.body.jenis_sampel) {
+            if (Array.isArray(req.body.jenis_sampel)) {
+                jenisSample = req.body.jenis_sampel.join(', ');
+            } else {
+                jenisSample = req.body.jenis_sampel;
+            }
+        }
+        if (req.body.jenis_sampel_lainnya) {
+            jenisSample = jenisSample ? jenisSample + ', ' + req.body.jenis_sampel_lainnya : req.body.jenis_sampel_lainnya;
+        }
+
+        // Hitung estimasi selesai
+        let estimasiSelesai = null;
+        if (req.body.tanggal_sampel) {
+            const start = new Date(req.body.tanggal_sampel);
+            const duration = serviceDetail?.duration_days || 0;
+            const totalHari = 3 + 7 + parseInt(duration);
+            const end = new Date(start);
+            end.setDate(end.getDate() + totalHari);
+            estimasiSelesai = end.toISOString().split('T')[0];
+        }
+
+        const sampleData = {
+            jenis_sample: jenisSample,
+            nama_sampel: req.body.nama_sampel || null,
+            jumlah_sample_angka: req.body.jumlah_sample_angka || 1,
+            jumlah_sample_satuan: req.body.jumlah_sample_satuan || 'sample',
+            tanggal_sampel: req.body.tanggal_sampel || null,
+            kemasan_sample: req.body.kemasan_sampel || null,   // <-- perhatikan: di database kolomnya kemasan_sample (tanpa 's' di akhir)
+            asal_sample: req.body.asal_sampel || null,         // <-- di database kolomnya asal_sample
+            sample_diambil_oleh: req.body.diambil_oleh || 'Pelanggan', // <-- di database kolomnya sample_diambil_oleh
+            test_type_id: serviceDetail?.test_type_id || null,
+            test_category_id: serviceDetail?.category_id || null,
+            service_id: serviceId || null,
+            price_at_time: serviceDetail?.price || 0,
+            method_at_time: req.body.metode_uji || serviceDetail?.method || null,
+            estimasi_selesai: estimasiSelesai
+        };
+
+        console.log('📦 Sample data:', sampleData);
+
+        // 7. Simpan sample jika service_id ada
+        if (sampleData.service_id) {
+            // Pastikan method createSamples sudah ada di submissionModel
+            await submissionModel.createSamples(id, [sampleData]);
+            console.log('✅ Sample berhasil disimpan');
+        } else {
+            console.warn('⚠️ Tidak ada service_id, sample tidak disimpan');
+        }
+
+        // 8. Notifikasi admin
         await notificationModel.createAdmin({
             title: 'Pengajuan Baru',
             message: `${payload.nama_pemohon} mengajukan ${payload.nama_proyek}`,
-            type: 'submission',
-            related_id: id
+            href: `/admin/submissions/${id}`
         });
 
         return success(res, 'Submission berhasil dibuat', { id }, 201);
     } catch (err) {
-        next(err);
+        console.error('❌ ERROR:', err);
+        return res.status(500).json({
+            success: false,
+            message: 'Terjadi kesalahan server',
+            error: err.message,
+            stack: err.stack
+        });
     }
 };
 
@@ -65,18 +203,28 @@ exports.update = async (req, res, next) => {
         const affected = await submissionModel.update(req.params.id, req.body);
         if (!affected) return error(res, 400, 'Tidak ada data yang diupdate');
 
-        // Notifikasi user kalau status berubah
+        // Notifikasi ke user (jika status berubah)
         if (req.body.status && req.body.status !== existing.status) {
             await notificationModel.createUser({
                 user_id: existing.user_id,
                 title: 'Status Pengajuan Berubah',
                 message: `Pengajuan ${existing.nama_proyek} sekarang: ${req.body.status}`,
-                type: 'submission_status',
-                related_id: existing.id
+                type: 'status_update',
+                related_id: req.params.id
             });
         }
 
-        return success(res, 'Submission berhasil diupdate');
+        return success(res, 'Submission diupdate');
+    } catch (err) {
+        next(err);
+    }
+};
+
+exports.delete = async (req, res, next) => {
+    try {
+        const affected = await submissionModel.delete(req.params.id);
+        if (!affected) return error(res, 404, 'Submission tidak ditemukan');
+        return success(res, 'Submission dihapus');
     } catch (err) {
         next(err);
     }
@@ -134,6 +282,34 @@ exports.userHistoryDetail = async (req, res, next) => {
         if (data.user_id !== req.user.id && req.user.role === 'pelanggan') {
             return error(res, 403, 'Akses ditolak');
         }
+        
+        // ========== AMBIL PAYMENT ==========
+        const paymentModel = require('../models/paymentModel');
+        const payments = await paymentModel.findBySubmissionId(req.params.id);
+        data.payment = payments.length > 0 ? payments[0] : null;
+        
+        // ========== AMBIL SAMPLES ==========
+        const db = require('../config/database');
+        const [samples] = await db.query(
+            `SELECT s.*, c.category_name, t.type_name 
+             FROM submission_samples s 
+             LEFT JOIN test_categories c ON c.id = s.test_category_id 
+             LEFT JOIN test_types t ON t.id = s.test_type_id 
+             WHERE s.submission_id = ?`,
+            [req.params.id]
+        );
+        data.samples = samples;
+
+        // ========== 🔥 AMBIL LAPORAN (TAMBAHKAN INI) ==========
+        const reportModel = require('../models/reportModel');
+        const reports = await reportModel.findBySubmissionId(req.params.id);
+        data.report = reports && reports.length > 0 ? reports[0] : null;
+
+        // ========== AMBIL KUIISIONER (OPSIONAL) ==========
+        const kuisionerModel = require('../models/kuisionerModel');
+        const kuisioner = await kuisionerModel.findBySubmissionId(req.params.id);
+        data.kuisioner = kuisioner || null;
+
         return success(res, 'Detail pengajuan', data);
     } catch (err) {
         next(err);
@@ -143,12 +319,150 @@ exports.userHistoryDetail = async (req, res, next) => {
 exports.userDashboard = async (req, res, next) => {
     try {
         const recent = await submissionModel.findByUserId(req.user.id, { limit: 5 });
-        const stats = await submissionModel.countByStatus();
+        const statsArray = await submissionModel.countByStatusUser(req.user.id);
+        
+        let totalSubmissions = 0, completedTests = 0;
+        statsArray.forEach(s => {
+            totalSubmissions += s.total;
+            if (s.status === 'Selesai') completedTests += s.total;
+        });
+
+        const db = require('../config/database');
+        const [paymentStats] = await db.query(
+            "SELECT SUM(total_tagihan) as totalSpending FROM payments p JOIN submissions s ON s.id = p.submission_id WHERE s.user_id = ? AND p.status_pembayaran = 'Lunas'", 
+            [req.user.id]
+        );
+        const [pendingPaymentStats] = await db.query(
+            "SELECT COUNT(*) as count FROM payments p JOIN submissions s ON s.id = p.submission_id WHERE s.user_id = ? AND p.status_pembayaran = 'Belum Bayar'", 
+            [req.user.id]
+        );
+        const pendingPayment = pendingPaymentStats[0]?.count || 0;
+        const totalSpending = paymentStats[0]?.totalSpending || 0;
+
+        // Hitung aktivitas 7 hari terakhir
+        const [weeklyStats] = await db.query(`
+            SELECT DATE(created_at) as date, COUNT(*) as count 
+            FROM submissions 
+            WHERE user_id = ? 
+              AND created_at >= DATE_SUB(CURRENT_DATE, INTERVAL 6 DAY)
+            GROUP BY DATE(created_at)
+        `, [req.user.id]);
+
+        const weeklyActivity = [0, 0, 0, 0, 0, 0, 0];
+        const chartLabels = [];
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+            const pastDate = new Date(today);
+            pastDate.setDate(today.getDate() - i);
+            const dateStr = pastDate.toISOString().split('T')[0];
+            chartLabels.push(dateStr.slice(5)); // misal '06-25'
+            
+            const match = weeklyStats.find(s => {
+                const sDate = new Date(s.date);
+                sDate.setMinutes(sDate.getMinutes() - sDate.getTimezoneOffset());
+                return sDate.toISOString().split('T')[0] === dateStr;
+            });
+            if (match) {
+                weeklyActivity[6 - i] = match.count;
+            }
+        }
+
         return success(res, 'Dashboard user', {
-            recent_submissions: recent,
-            stats
+            recentSubmissions: recent,
+            totalSubmissions,
+            pendingPayment,
+            completedTests,
+            totalSpending,
+            weeklyActivity,
+            chartLabels
         });
     } catch (err) {
+        next(err);
+    }
+};
+
+// =========== UPLOAD LAPORAN (HASIL PENGUJIAN) ===========
+exports.uploadReport = async (req, res, next) => {
+    try {
+        const submissionId = req.params.id;
+
+        // 1. Cek submission
+        const submission = await submissionModel.findById(submissionId);
+        if (!submission) {
+            return error(res, 404, 'Submission tidak ditemukan');
+        }
+
+        // 2. Cek file
+        if (!req.file) {
+            return error(res, 400, 'File laporan belum diupload');
+        }
+
+        // 3. Simpan ke tabel test_reports
+        const reportModel = require('../models/reportModel');
+
+        // 🔥 CEK APAKAH SUDAH ADA LAPORAN UNTUK SUBMISSION INI
+        const existingReports = await reportModel.findBySubmissionId(submissionId);
+        if (existingReports.length > 0) {
+            // Jika sudah ada, hapus yang lama (opsional, atau update)
+            await reportModel.deleteBySubmissionId(submissionId);
+        }
+
+        const reportId = await reportModel.create({
+            submission_id: submissionId,
+            file_laporan: req.file.filename,  // 🔥 PAKAI file_laporan (bukan file_path)
+            no_laporan: `LAP-${submissionId}-${Date.now()}`,
+            tanggal_selesai: new Date(),
+            catatan_laporan: req.body.catatan || null
+        });
+
+        // 4. Update status submission menjadi 'Selesai' (opsional)
+        await submissionModel.updateStatus(submissionId, 'Selesai');
+
+        // 5. Notifikasi ke user
+        const notificationModel = require('../models/notificationModel');
+        await notificationModel.createUser({
+            user_id: submission.user_id,
+            title: 'Laporan Hasil Pengujian Tersedia',
+            message: `Laporan untuk ${submission.nama_proyek} telah tersedia. Silakan unduh di halaman detail pengajuan.`,
+            type: 'report'
+        });
+
+        return success(res, 'Laporan berhasil diupload', {
+            reportId,
+            filename: req.file.filename
+        });
+
+    } catch (err) {
+        console.error('❌ Error upload report:', err);
+        next(err);
+    }
+};
+
+exports.deleteReport = async (req, res, next) => {
+    try {
+        const submissionId = req.params.id;
+
+        // 1. Cek submission
+        const submission = await submissionModel.findById(submissionId);
+        if (!submission) {
+            return error(res, 404, 'Submission tidak ditemukan');
+        }
+
+        // 2. Hapus laporan dari database
+        const reportModel = require('../models/reportModel');
+        const affected = await reportModel.deleteBySubmissionId(submissionId);
+
+        if (!affected) {
+            return error(res, 404, 'Laporan tidak ditemukan');
+        }
+
+        // 3. (Opsional) Update status submission kembali ke 'Lunas' atau status sebelumnya?
+        // Tergantung kebutuhan, bisa dibiarkan.
+
+        return success(res, 'Laporan berhasil dihapus');
+
+    } catch (err) {
+        console.error('❌ Error delete report:', err);
         next(err);
     }
 };

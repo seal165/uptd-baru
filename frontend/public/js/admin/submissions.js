@@ -4,7 +4,7 @@
     'use strict';
 
     // ==================== KONFIGURASI ====================
-    const API_BASE_URL = 'http://localhost:5000/api';
+    const API_BASE_URL = window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api';
     const ITEMS_PER_PAGE = 10;
 
     // State
@@ -18,6 +18,7 @@
     let currentTestCategory = '';
     let totalData = 0;
     let searchTimeout;
+    let allSubmissions = [];
 
     // ==================== CEK TOKEN ====================
     function getToken() {
@@ -106,8 +107,8 @@
             const namaPemohon = sub.nama_pemohon || '-';
             
             // Jenis pengujian
-            const jenisUji = sub.jenis_uji || '-';
-            const kategoriUji = sub.kategori_uji || '';
+            const jenisUji = sub.category_name ? sub.category_name.toUpperCase() : (sub.total_samples ? `${sub.total_samples} Sampel` : 'Pengujian Material');
+            const kategoriUji = sub.type_name || '';
             
             // 🔥 MAPPING STATUS LANGSUNG (tanpa external file)
             let statusClass = 'badge-soft-secondary';
@@ -250,10 +251,12 @@
             console.log('📦 Response data:', result);
 
             if (result.success) {
-                const data = result.data;
-                totalData = data.total || 0;
-                renderTable(data.submissions || []);
-                updatePagination(data);
+                const data = Array.isArray(result.data) ? result.data : (result.data?.submissions || []);
+                allSubmissions = data;
+                totalData = result.pagination?.total || result.data?.total || 0;
+                
+                renderTable(data);
+                updatePagination(result.pagination || { total: totalData, page: currentPage });
             } else {
                 showAlert(result.message || 'Gagal memuat data', 'danger');
             }

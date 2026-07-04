@@ -135,9 +135,9 @@ const pageController = {
             const axios = require('axios');
             const API_URL = process.env.API_URL || 'http://localhost:5000/api';
             
-            console.log('📡 Fetching services from:', `${API_URL}/services`);
+            console.log('📡 Fetching services from:', `${API_URL}/public/services`);
             
-            const response = await axios.get(`${API_URL}/services`, { timeout: 10000 });
+            const response = await axios.get(`${API_URL}/public/services`, { timeout: 10000 });
             
             console.log('📦 Response status:', response.status);
             console.log('📦 Response data success:', response.data?.success);

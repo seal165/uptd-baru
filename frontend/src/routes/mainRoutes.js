@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const pageController = require('../controllers/pageController');
+const adminController = require('../controllers/adminController');
+const userController = require('../controllers/userController');
 const authMiddleware = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
@@ -89,19 +91,19 @@ router.get('/admin/login', (req, res) => {
     });
 });
 
-router.get('/admin/dashboard', authMiddleware.verifyPageAccess, pageController.adminDashboard);
-router.get('/admin/submissions', authMiddleware.verifyPageAccess, pageController.adminSubmissions);
-router.get('/admin/submissions/:id', authMiddleware.verifyPageAccess, pageController.adminDetailSubmission);
-router.get('/admin/skrd', authMiddleware.verifyPageAccess, pageController.adminSKRD);
-router.get('/admin/skrd/:id', authMiddleware.verifyPageAccess, pageController.adminDetailSKRD);
-router.get('/admin/kuisioner', authMiddleware.verifyPageAccess, pageController.adminKuisioner);
-router.get('/admin/users', authMiddleware.verifyPageAccess, pageController.adminUsers);
-router.get('/admin/users/:id', authMiddleware.verifyPageAccess, pageController.adminUserDetail);
-router.get('/admin/settings', authMiddleware.verifyPageAccess, pageController.adminSettings);
+router.get('/admin/dashboard', authMiddleware.verifyPageAccess, adminController.dashboard);
+router.get('/admin/submissions', authMiddleware.verifyPageAccess, adminController.submissions);
+router.get('/admin/submissions/:id', authMiddleware.verifyPageAccess, adminController.detailSubmission);
+router.get('/admin/skrd', authMiddleware.verifyPageAccess, adminController.skrd);
+router.get('/admin/skrd/:id', authMiddleware.verifyPageAccess, adminController.detailSkrd);
+router.get('/admin/kuisioner', authMiddleware.verifyPageAccess, adminController.kuisioner);
+router.get('/admin/users', authMiddleware.verifyPageAccess, adminController.users);
+router.get('/admin/users/:id', authMiddleware.verifyPageAccess, adminController.userDetail);
+router.get('/admin/settings', authMiddleware.verifyPageAccess, adminController.settings);
 
 // ==================== HALAMAN USER (PEMOHON) ====================
-router.get('/user/dashboard', authMiddleware.verifyUserAccess, maintenanceCheck, pageController.userDashboard);
-router.get('/user/submission', authMiddleware.verifyUserAccess, maintenanceCheck, pageController.userSubmission);
+router.get('/user/dashboard', authMiddleware.verifyUserAccess, maintenanceCheck, userController.dashboard);
+router.get('/user/submission', authMiddleware.verifyUserAccess, maintenanceCheck, userController.submissionPage);
 router.post('/user/submission', 
     authMiddleware.verifyUserAccess,
     maintenanceCheck, // <- tambahkan di sini
@@ -111,21 +113,21 @@ router.post('/user/submission',
         { name: 'lampiran_pendukung', maxCount: 1 }
     ]), 
     checkUploadSize, 
-    pageController.postSubmission
+    userController.createSubmission
 );
-router.get('/user/history', authMiddleware.verifyUserAccess, maintenanceCheck, pageController.userHistory);
-router.get('/user/history/:id', authMiddleware.verifyUserAccess, maintenanceCheck, pageController.userHistoryDetail);
-router.get('/user/transaction', authMiddleware.verifyUserAccess, maintenanceCheck, pageController.userTransaction);
-router.get('/user/transaction/:id', authMiddleware.verifyUserAccess, maintenanceCheck, pageController.userTransactionDetail);
+router.get('/user/history', authMiddleware.verifyUserAccess, maintenanceCheck, userController.history);
+router.get('/user/history/:id', authMiddleware.verifyUserAccess, maintenanceCheck, userController.historyDetail);
+router.get('/user/transaction', authMiddleware.verifyUserAccess, maintenanceCheck, userController.transactions);
+router.get('/user/transaction/:id', authMiddleware.verifyUserAccess, maintenanceCheck, userController.transactionDetail);
 router.post('/user/transaction/:id/upload', 
     authMiddleware.verifyUserAccess,
     maintenanceCheck, // <- tambahkan di sini
     upload.single('payment_proof'),
     checkUploadSize,
-    pageController.uploadPaymentProof
+    userController.uploadPaymentProof
 );
-router.get('/user/profile', authMiddleware.verifyUserAccess, maintenanceCheck, pageController.userProfile);
-router.post('/user/profile', authMiddleware.verifyUserAccess, maintenanceCheck, pageController.updateProfile);
+router.get('/user/profile', authMiddleware.verifyUserAccess, maintenanceCheck, userController.profile);
+router.post('/user/profile', authMiddleware.verifyUserAccess, maintenanceCheck, userController.updateProfile);
 
 router.get('/maintenance', (req, res) => {
     res.render('maintenance', {
@@ -160,7 +162,7 @@ router.get('/track/:no_urut', async (req, res) => {
 router.post('/auth/register', async (req, res) => {
     try {
         const axios = require('axios');
-        const API_URL = process.env.API_URL || 'http://localhost:5000/api';
+        const API_URL = process.env.API_URL || `${process.env.BACKEND_URL || (process.env.BACKEND_URL || 'http://localhost:5000')}/api`;
         
         const { email, password, confirm_password, full_name, nama_instansi, alamat, nomor_telepon } = req.body;
         
@@ -200,7 +202,7 @@ router.post('/auth/register', async (req, res) => {
 router.post('/auth/login', async (req, res) => {
     try {
         const axios = require('axios');
-        const API_URL = process.env.API_URL || 'http://localhost:5000/api';
+        const API_URL = process.env.API_URL || `${process.env.BACKEND_URL || (process.env.BACKEND_URL || 'http://localhost:5000')}/api`;
         
         const { email, password } = req.body;
         
@@ -270,7 +272,7 @@ router.post('/auth/login', async (req, res) => {
 router.post('/auth/admin/login', async (req, res) => {
     try {
         const axios = require('axios');
-        const API_URL = process.env.API_URL || 'http://localhost:5000/api';
+        const API_URL = process.env.API_URL || `${process.env.BACKEND_URL || (process.env.BACKEND_URL || 'http://localhost:5000')}/api`;
         
         const { email, password } = req.body;
         

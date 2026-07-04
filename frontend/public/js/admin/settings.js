@@ -4,9 +4,7 @@
     'use strict';
 
     // ==================== KONFIGURASI ====================
-    const API_BASE_URL = window.location.origin === 'http://localhost:3000' 
-        ? 'http://localhost:5000/api' 
-        : '/api';
+const API_BASE_URL = window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api';
     
     // State
     let adminData = {};
@@ -101,7 +99,7 @@
         
         let newAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name || 'Admin+Lab')}&background=047857&color=fff&size=150`;
         if (data.avatar) {
-            newAvatarUrl = data.avatar;
+            newAvatarUrl = data.avatar.startsWith('http') ? data.avatar : `${window.__APP_CONFIG__?.assetBaseUrl || 'http://localhost:5000'}${data.avatar}`;
         }
         document.getElementById('profileImage').src = newAvatarUrl;
         
@@ -180,7 +178,7 @@
         formData.append('avatar', file);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/settings/profile/avatar`, {
+            const response = await fetch(`${API_BASE_URL}/users/profile/avatar`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${getToken()}`
@@ -212,7 +210,7 @@
         if (!confirm('Hapus foto profil?')) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/settings/profile/avatar`, {
+            const response = await fetch(`${API_BASE_URL}/users/profile/avatar`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${getToken()}`
@@ -306,12 +304,13 @@
         document.getElementById('changePasswordSpinner').style.display = 'inline-block';
 
         try {
-            const response = await fetch(`${API_BASE_URL}/settings/password`, {
-                method: 'PUT',
+            const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+                method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    current_password: currentPass,
-                    new_password: newPass
+                    old_password: currentPass,
+                    new_password: newPass,
+                    confirm_password: confirmPass
                 })
             });
 
@@ -451,20 +450,23 @@
             return;
         }
         
-        busyPeriods.sort((a, b) => new Date(a.tanggal_mulai) - new Date(b.tanggal_mulai));
+        busyPeriods.sort((a, b) => new Date(a.start_date || a.tanggal_mulai) - new Date(b.start_date || b.tanggal_mulai));
         
         let html = '<div class="list-group">';
         busyPeriods.forEach(period => {
-            const mulai = new Date(period.tanggal_mulai);
-            const selesai = new Date(period.tanggal_selesai);
+            const startDate = period.start_date || period.tanggal_mulai;
+            const endDate = period.end_date || period.tanggal_selesai;
+            const reason = period.reason || period.keterangan || '-';
+            const mulai = new Date(startDate);
+            const selesai = new Date(endDate);
             const durasi = Math.ceil((selesai - mulai) / (1000 * 60 * 60 * 24)) + 1;
             
             html += `
                 <div class="list-group-item d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="fw-bold mb-1">${period.keterangan}</h6>
+                        <h6 class="fw-bold mb-1">${reason}</h6>
                         <p class="mb-0 small text-muted">
-                            ${formatDate(period.tanggal_mulai)} - ${formatDate(period.tanggal_selesai)}
+                            ${formatDate(startDate)} - ${formatDate(endDate)}
                             <span class="badge bg-light text-dark ms-2">${durasi} hari</span>
                         </p>
                     </div>
@@ -505,9 +507,9 @@
         
         document.getElementById('periodFormTitle').textContent = 'Edit Periode Sibuk';
         document.getElementById('periodId').value = period.id;
-        document.getElementById('periodKeterangan').value = period.keterangan;
-        document.getElementById('periodMulai').value = period.tanggal_mulai;
-        document.getElementById('periodSelesai').value = period.tanggal_selesai;
+        document.getElementById('periodKeterangan').value = period.reason || period.keterangan || '';
+        document.getElementById('periodMulai').value = (period.start_date || period.tanggal_mulai || '').substring(0, 10);
+        document.getElementById('periodSelesai').value = (period.end_date || period.tanggal_selesai || '').substring(0, 10);
         
         document.getElementById('busyPeriodForm').style.display = 'block';
     }
@@ -543,9 +545,9 @@
                 method: method,
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    keterangan,
-                    tanggal_mulai: tanggalMulai,
-                    tanggal_selesai: tanggalSelesai
+                    reason: keterangan,
+                    start_date: tanggalMulai,
+                    end_date: tanggalSelesai
                 })
             });
             
@@ -652,17 +654,17 @@
                 
                 result.data.forEach(backup => {
                     const sizeInKB = (backup.size / 1024).toFixed(2);
-                    // 🔥 Perbaiki URL: pakai API_BASE_URL (dengan /api)
-                    const downloadUrl = `${API_BASE_URL}/backups/${backup.filename}?token=${getToken()}`;
+                    // 🔥 PASTIKAN URL PAKAI SINGULAR "/backup/" BUKAN "/backups/"
+                    const filename = encodeURIComponent(backup.filename);
                     html += `
                         <tr>
                             <td>${formatDate(backup.created_at)}</td>
                             <td><code class="small">${backup.filename}</code></td>
                             <td>${sizeInKB} KB</td>
                             <td>
-                                <a href="${downloadUrl}" class="btn btn-sm btn-outline-primary" title="Download" target="_blank">
+                                <button onclick="window.downloadBackup('${filename}')" class="btn btn-sm btn-outline-primary" title="Download">
                                     <i class="fas fa-download"></i>
-                                </a>
+                                </button>
                             </td>
                         </tr>
                     `;
@@ -688,6 +690,53 @@
             `;
         }
     }
+
+    window.downloadBackup = async function(filename) {
+        try {
+            const token = getToken();
+            if (!token) {
+                handleUnauthorized();
+                return;
+            }
+
+            const url = `${API_BASE_URL}/settings/backup/${filename}`;
+            console.log('📥 Downloading backup:', url);
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.status === 401) {
+                handleUnauthorized();
+                return;
+            }
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ Download error:', errorText);
+                alert(`Gagal download backup: ${response.status} - ${response.statusText}`);
+                return;
+            }
+
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = decodeURIComponent(filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
+            
+            console.log('✅ Download selesai:', filename);
+        } catch (error) {
+            console.error('❌ Error downloading backup:', error);
+            alert('Gagal download backup: ' + error.message);
+        }
+    };
 
     async function createBackup() {
         showAlert('Membuat backup database...', 'info');
@@ -770,8 +819,15 @@
         logsPage = 1;
 
         try {
-            // 🔥 Ganti filter menjadi type
-            const response = await fetch(`${API_BASE_URL}/settings/logs?page=${logsPage}&limit=10&type=${filter}`, {
+            // 🔥 Jika filter 'all', jangan kirim parameter type
+            let url = `${API_BASE_URL}/settings/logs?page=${logsPage}&limit=10`;
+            if (filter && filter !== 'all') {
+                url += `&type=${filter}`;
+            }
+
+            console.log('📡 [loadActivityLogs] Fetching:', url);
+
+            const response = await fetch(url, {
                 headers: getAuthHeaders()
             });
 
@@ -781,10 +837,14 @@
             }
 
             const result = await response.json();
+            console.log('📦 [loadActivityLogs] Response:', result);
+
             const container = document.getElementById('activityLogs');
 
-            if (result.success && result.data && result.data.length > 0) {
-                renderLogs(result.data, false);
+            if (result.success && result.data && result.data.data && result.data.data.length > 0) {
+                renderLogs(result.data.data, false);
+                // Simpan total untuk load more
+                window._totalLogs = result.data.total || 0;
             } else {
                 container.innerHTML = `
                     <div class="text-center py-4 text-muted">
@@ -795,6 +855,12 @@
             }
         } catch (error) {
             console.error('Error loading logs:', error);
+            document.getElementById('activityLogs').innerHTML = `
+                <div class="text-center py-4 text-danger">
+                    <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
+                    <p>Gagal memuat log aktivitas</p>
+                </div>
+            `;
         }
     }
 
@@ -803,7 +869,12 @@
         logsPage++;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/settings/logs?page=${logsPage}&limit=10&filter=${filter}`, {
+            let url = `${API_BASE_URL}/settings/logs?page=${logsPage}&limit=10`;
+            if (filter && filter !== 'all') {
+                url += `&type=${filter}`;
+            }
+
+            const response = await fetch(url, {
                 headers: getAuthHeaders()
             });
 
@@ -814,13 +885,14 @@
 
             const result = await response.json();
 
-            if (result.success && result.data && result.data.length > 0) {
-                renderLogs(result.data, true);
+            if (result.success && result.data && result.data.data && result.data.data.length > 0) {
+                renderLogs(result.data.data, true);
             } else {
                 showAlert('Semua log sudah ditampilkan', 'info');
             }
         } catch (error) {
             console.error('Error loading more logs:', error);
+            showAlert('Gagal memuat lebih banyak log', 'danger');
         }
     }
 
@@ -832,7 +904,6 @@
             let iconClass = 'fa-info-circle text-info';
             let borderStyle = 'border-info';
 
-            // Tentukan ikon berdasarkan activity_name
             const activity = (log.activity_name || '').toLowerCase();
             if (activity.includes('login')) {
                 iconClass = 'fa-sign-in-alt text-primary';
@@ -854,8 +925,7 @@
                 borderStyle = 'border-success';
             }
 
-            // 🔥 Gunakan activity_name sebagai deskripsi, user_name dari join
-            const userName = log.user_name || 'System';
+            const userName = log.full_name || log.user_name || 'System';
             const ip = log.ip_address || '-';
             const activityName = log.activity_name || 'Aktivitas';
 

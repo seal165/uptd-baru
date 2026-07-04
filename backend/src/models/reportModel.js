@@ -5,7 +5,7 @@ const db = require('../config/database');
 
 exports.list = async ({ limit = 20, offset = 0 } = {}) => {
     const [rows] = await db.query(
-        `SELECT tr.*, s.nama_pemohon, s.nama_proyek, s.no_permohonan
+        `SELECT tr.*, s.nama_pemohon, s.nama_instansi, s.nama_proyek, s.no_permohonan
          FROM test_reports tr
          LEFT JOIN submissions s ON s.id = tr.submission_id
          ORDER BY tr.created_at DESC LIMIT ? OFFSET ?`,
@@ -32,9 +32,9 @@ exports.findBySubmissionId = async (submissionId) => {
 
 exports.create = async (data) => {
     const [result] = await db.query(
-        `INSERT INTO test_reports (submission_id, file_path, uploaded_by, created_at)
-         VALUES (?, ?, ?, NOW())`,
-        [data.submission_id, data.file_path, data.uploaded_by]
+        `INSERT INTO test_reports (submission_id, file_laporan, no_laporan, catatan_laporan, created_at)
+         VALUES (?, ?, ?, ?, NOW())`,
+        [data.submission_id, data.file_laporan, data.no_laporan || null, data.catatan_laporan || null]
     );
     return result.insertId;
 };

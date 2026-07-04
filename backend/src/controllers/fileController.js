@@ -49,6 +49,49 @@ async function checkOwnership(userId, fileType, filename) {
         const user = await userModel.findById(userId);
         return user?.avatar?.includes(filename);
     }
-    // Untuk surat, ktp, payment, laporan, skrd, others — cek di submissions
+
+    // 🔥 Tambahkan laporan
+    if (fileType === 'laporan') {
+        const db = require('../config/database');
+        const [rows] = await db.query(
+            `SELECT tr.id 
+             FROM test_reports tr
+             JOIN submissions s ON s.id = tr.submission_id
+             WHERE s.user_id = ? AND tr.file_laporan = ?
+             LIMIT 1`,
+            [userId, filename]
+        );
+        return rows.length > 0;
+    }
+
+    // Untuk SKRD
+    if (fileType === 'skrd') {
+        const db = require('../config/database');
+        const [rows] = await db.query(
+            `SELECT p.id 
+             FROM payments p
+             JOIN submissions s ON s.id = p.submission_id
+             WHERE s.user_id = ? AND p.skrd_file = ?
+             LIMIT 1`,
+            [userId, filename]
+        );
+        return rows.length > 0;
+    }
+
+    // Untuk payment (bukti pembayaran)
+    if (fileType === 'payment') {
+        const db = require('../config/database');
+        const [rows] = await db.query(
+            `SELECT p.id 
+             FROM payments p
+             JOIN submissions s ON s.id = p.submission_id
+             WHERE s.user_id = ? AND (p.bukti_pembayaran_1 = ? OR p.bukti_pembayaran_2 = ?)
+             LIMIT 1`,
+            [userId, filename, filename]
+        );
+        return rows.length > 0;
+    }
+
+    // Untuk surat, ktp, others — cek di submissions (melalui submissionModel.userOwnsFile)
     return await submissionModel.userOwnsFile(userId, filename);
 }

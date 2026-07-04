@@ -18,26 +18,30 @@
         box-shadow: 0 10px 20px rgba(0,0,0,0.1);
     }
     
-    /* Modal Styles */
     .modal-overlay {
         display: none; 
         position: fixed; 
-        z-index: 9999; /* Z-index tinggi agar di atas elemen lain */
+        z-index: 1000; 
         left: 0;
         top: 0;
         width: 100%; 
         height: 100%; 
         background-color: rgba(0, 0, 0, 0.5); 
         backdrop-filter: blur(3px);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
     }
     
     .modal-content {
         background-color: #fff;
-        margin: 10% auto; 
+        margin: auto; 
         padding: 30px;
         border-radius: 12px;
-        width: 90%;
+        width: 100%;
         max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
         box-shadow: 0 15px 30px rgba(0,0,0,0.2);
         position: relative;
         animation: modalFadeIn 0.3s ease;
@@ -81,18 +85,16 @@
         margin-bottom: 8px;
         line-height: 1.5;
         color: #475569;
-        font-size: 0.95rem;
     }
     .modal-body p {
         color: #475569;
-        font-size: 0.95rem;
     }
 </style>
 
 <div class="container" style="padding-bottom: 15px;">
 
-    <div class="text-center mb-5 pt-5">
-        <h3 style="font-weight: 700; color: var(--primary); padding-top:10px;">Alur Pengajuan</h3>
+    <div class="text-center mb-5" style="padding-top: 24px;">
+        <h3 style="font-weight: 700; color: var(--primary);">Alur Pengajuan</h3>
     </div>
     
     <div class="steps-container">
@@ -171,12 +173,14 @@
                                     <div class="svc-name">
                                         <h4><%= item.service_name %></h4>
                                         <div class="svc-meta">
+                                            <!-- Badge KAN -->
                                             <% if(item.kan === 'Ya') { %>
                                                 <span class="badge-pill badge-kan"><i class="fas fa-check-circle"></i> Terakreditasi KAN</span>
                                             <% } else { %>
                                                 <span class="badge-pill badge-non"><i class="fas fa-clock"></i> Belum Terakreditasi</span>
                                             <% } %>
                                             
+                                            <!-- Badge Jenis Pengujian -->
                                             <span class="badge-pill <%= item.test_type_id === 1 ? 'badge-lab' : 'badge-field' %>">
                                                 <%= item.test_type_id === 1 ? 'Pengujian Bahan' : 'Pengujian Konstruksi' %>
                                             </span>
@@ -234,104 +238,9 @@
 
 </div>
 
-<div id="modal-1" class="modal-overlay">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('modal-1')">&times;</span>
-        <h3 class="modal-title"><i class="fas fa-file-alt"></i> 1. Permohonan</h3>
-        <div class="modal-body">
-            <p><strong>Deskripsi:</strong> Proses awal pengajuan layanan pengujian oleh pemohon.</p>
-            <p><strong>Alur:</strong></p>
-            <ol>
-                <li>Melakukan registrasi akun dan masuk (<em>login</em>) ke dalam sistem.</li>
-                <li>Mengakses halaman <strong>Pengajuan Pengujian</strong>.</li>
-                <li>Memilih kategori serta jenis pengujian, kemudian memasukkan jumlah sampel yang akan diuji.</li>
-                <li>Melengkapi formulir pengajuan yang tersedia pada halaman sistem.</li>
-                <li>Mengunggah dokumen kelengkapan, meliputi: surat permohonan resmi dari instansi, hasil pindai (<em>scan</em>) Kartu Tanda Penduduk (KTP) yang sesuai dengan nama pemohon, serta dokumen lampiran pendukung lainnya.</li>
-                <li>Menekan tombol <strong>Kirim</strong> untuk memproses pengajuan ke dalam sistem.</li>
-            </ol>
-        </div>
-    </div>
-</div>
 
-<div id="modal-2" class="modal-overlay">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('modal-2')">&times;</span>
-        <h3 class="modal-title"><i class="fas fa-clipboard-check"></i> 2. Pengecekan Sampel</h3>
-        <div class="modal-body">
-            <p><strong>Deskripsi:</strong> Penyerahan dan identifikasi awal sampel pengujian.</p>
-            <p><strong>Alur:</strong></p>
-            <ol>
-                <li>Sampel uji diserahkan secara langsung atau diantarkan ke laboratorium untuk proses identifikasi dan pencatatan awal oleh petugas.</li>
-            </ol>
-        </div>
-    </div>
-</div>
-
-<div id="modal-3" class="modal-overlay">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('modal-3')">&times;</span>
-        <h3 class="modal-title"><i class="fas fa-search"></i> 3. Kaji Ulang</h3>
-        <div class="modal-body">
-            <p><strong>Deskripsi:</strong> Evaluasi teknis terhadap sampel yang diserahkan.</p>
-            <p><strong>Alur:</strong></p>
-            <ol>
-                <li>Petugas melakukan peninjauan dan evaluasi kondisi sampel untuk menentukan kelayakan uji berdasarkan standar operasional prosedur (SOP) yang berlaku.</li>
-            </ol>
-        </div>
-    </div>
-</div>
-
-<div id="modal-4" class="modal-overlay">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('modal-4')">&times;</span>
-        <h3 class="modal-title"><i class="fas fa-wallet"></i> 4. Pembayaran</h3>
-        <div class="modal-body">
-            <p><strong>Deskripsi:</strong> Proses penyelesaian administrasi dan retribusi pengujian.</p>
-            <p><strong>Alur:</strong></p>
-            <ol>
-                <li>Apabila sampel dinyatakan layak uji, pemohon dapat mengakses halaman <strong>Transaksi</strong>.</li>
-                <li>Menunggu administrator mengunggah dokumen Surat Ketetapan Retribusi Daerah (SKRD).</li>
-                <li>Melakukan pembayaran retribusi sesuai dengan instruksi dan nominal yang tertera pada dokumen SKRD, kemudian mengunggah bukti pembayaran ke dalam sistem.</li>
-                <li>Administrator yang berwenang akan melakukan verifikasi dan validasi terhadap bukti pembayaran tersebut.</li>
-            </ol>
-        </div>
-    </div>
-</div>
-
-<div id="modal-5" class="modal-overlay">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('modal-5')">&times;</span>
-        <h3 class="modal-title"><i class="fas fa-flask"></i> 5. Pengujian</h3>
-        <div class="modal-body">
-            <p><strong>Deskripsi:</strong> Pelaksanaan analisa laboratorium atau lapangan.</p>
-            <p><strong>Alur:</strong></p>
-            <ol>
-                <li>Setelah sampel dinyatakan memenuhi kriteria kaji ulang dan proses administrasi pembayaran selesai, tim teknis akan melaksanakan proses pengujian sampel baik di laboratorium maupun di lapangan.</li>
-            </ol>
-        </div>
-    </div>
-</div>
-
-<div id="modal-6" class="modal-overlay">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('modal-6')">&times;</span>
-        <h3 class="modal-title"><i class="fas fa-certificate"></i> 6. Selesai</h3>
-        <div class="modal-body">
-            <p><strong>Deskripsi:</strong> Pengambilan hasil dan penyelesaian prosedur layanan.</p>
-            <p><strong>Alur:</strong></p>
-            <ol>
-                <li>Pemohon mengakses kembali halaman <strong>Pengujian</strong> pada sistem.</li>
-                <li>Mengisi kuesioner evaluasi layanan (Indeks Kepuasan Masyarakat).</li>
-                <li>Mengunduh dokumen Laporan Hasil Uji (LHU) atau sertifikat pengujian elektronik yang telah dilegalisasi.</li>
-            </ol>
-        </div>
-    </div>
-</div>
 
 <script>
-    // -----------------------------------------
-    // FITUR PENCARIAN & FILTER
-    // -----------------------------------------
     const searchInput = document.getElementById('searchInput');
     const typeFilter = document.getElementById('typeFilter');
     const categoryWrappers = document.querySelectorAll('.category-wrapper');
@@ -378,30 +287,130 @@
 
     if (searchInput) searchInput.addEventListener('input', filterData);
     if (typeFilter) typeFilter.addEventListener('change', filterData);
+</script>
 
-    // -----------------------------------------
-    // FITUR POP-UP (MODAL) ALUR PENGAJUAN
-    // -----------------------------------------
-    
-    // Fungsi untuk membuka modal
+<!-- Modal 1: Permohonan -->
+<div id="modal-1" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('modal-1')">&times;</span>
+        <h3 class="modal-title"><i class="fas fa-file-alt"></i> 1. Permohonan</h3>
+        <div class="modal-body">
+            <p><strong>Deskripsi:</strong> Proses awal pengajuan layanan pengujian oleh pemohon.</p>
+            <p><strong>Alur:</strong></p>
+            <ol>
+                <li>Melakukan registrasi akun dan masuk (<em>login</em>) ke dalam sistem.</li>
+                <li>Mengakses halaman <strong>Pengajuan Pengujian</strong>.</li>
+                <li>Memilih kategori serta jenis pengujian, kemudian memasukkan jumlah sampel yang akan diuji.</li>
+                <li>Melengkapi formulir pengajuan yang tersedia pada halaman sistem.</li>
+                <li>Mengunggah dokumen kelengkapan, meliputi: surat permohonan resmi dari instansi, hasil pindai (<em>scan</em>) Kartu Tanda Penduduk (KTP) yang sesuai dengan nama pemohon, serta dokumen lampiran pendukung lainnya.</li>
+                <li>Menekan tombol <strong>Kirim</strong> untuk memproses pengajuan ke dalam sistem.</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: Pengecekan -->
+<div id="modal-2" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('modal-2')">&times;</span>
+        <h3 class="modal-title"><i class="fas fa-clipboard-check"></i> 2. Pengecekan Sampel</h3>
+        <div class="modal-body">
+            <p><strong>Deskripsi:</strong> Penyerahan dan identifikasi awal sampel pengujian.</p>
+            <p><strong>Alur:</strong></p>
+            <ol>
+                <li>Sampel uji diserahkan secara langsung atau diantarkan ke laboratorium untuk proses identifikasi dan pencatatan awal oleh petugas.</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 3: Kaji Ulang -->
+<div id="modal-3" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('modal-3')">&times;</span>
+        <h3 class="modal-title"><i class="fas fa-search"></i> 3. Kaji Ulang</h3>
+        <div class="modal-body">
+            <p><strong>Deskripsi:</strong> Evaluasi teknis terhadap sampel yang diserahkan.</p>
+            <p><strong>Alur:</strong></p>
+            <ol>
+                <li>Petugas melakukan peninjauan dan evaluasi kondisi sampel untuk menentukan kelayakan uji berdasarkan standar operasional prosedur (SOP) yang berlaku.</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 4: Bayar -->
+<div id="modal-4" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('modal-4')">&times;</span>
+        <h3 class="modal-title"><i class="fas fa-wallet"></i> 4. Pembayaran</h3>
+        <div class="modal-body">
+            <p><strong>Deskripsi:</strong> Proses penyelesaian administrasi dan retribusi pengujian.</p>
+            <p><strong>Alur:</strong></p>
+            <ol>
+                <li>Apabila sampel dinyatakan layak uji, pemohon dapat mengakses halaman <strong>Transaksi</strong>.</li>
+                <li>Menunggu administrator mengunggah dokumen Surat Ketetapan Retribusi Daerah (SKRD).</li>
+                <li>Melakukan pembayaran retribusi sesuai dengan instruksi dan nominal yang tertera pada dokumen SKRD, kemudian mengunggah bukti pembayaran ke dalam sistem.</li>
+                <li>Administrator yang berwenang akan melakukan verifikasi dan validasi terhadap bukti pembayaran tersebut.</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 5: Pengujian -->
+<div id="modal-5" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('modal-5')">&times;</span>
+        <h3 class="modal-title"><i class="fas fa-flask"></i> 5. Pengujian</h3>
+        <div class="modal-body">
+            <p><strong>Deskripsi:</strong> Pelaksanaan analisa laboratorium atau lapangan.</p>
+            <p><strong>Alur:</strong></p>
+            <ol>
+                <li>Setelah sampel dinyatakan memenuhi kriteria kaji ulang dan proses administrasi pembayaran selesai, tim teknis akan melaksanakan proses pengujian sampel baik di laboratorium maupun di lapangan.</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 6: Selesai -->
+<div id="modal-6" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('modal-6')">&times;</span>
+        <h3 class="modal-title"><i class="fas fa-certificate"></i> 6. Selesai</h3>
+        <div class="modal-body">
+            <p><strong>Deskripsi:</strong> Pengambilan hasil dan penyelesaian prosedur layanan.</p>
+            <p><strong>Alur:</strong></p>
+            <ol>
+                <li>Pemohon mengakses kembali halaman <strong>Pengujian</strong> pada sistem.</li>
+                <li>Mengisi kuesioner evaluasi layanan (Indeks Kepuasan Masyarakat).</li>
+                <li>Mengunduh dokumen Laporan Hasil Uji (LHU) atau sertifikat pengujian elektronik yang telah dilegalisasi.</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<script>
     function openModal(modalId) {
-        document.getElementById(modalId).style.display = "block";
-        document.body.style.overflow = "hidden"; // Mencegah background scrolling
+        document.getElementById(modalId).style.display = "flex";
+        document.body.style.overflow = "hidden";
     }
 
-    // Fungsi untuk menutup modal
     function closeModal(modalId) {
         document.getElementById(modalId).style.display = "none";
-        document.body.style.overflow = "auto"; // Mengembalikan fungsi scroll
+        document.body.style.overflow = "auto";
     }
 
-    // Menutup modal jika area luar (overlay) di-klik
-    window.addEventListener('click', function(event) {
+    // Hanya mengikat event onClick ke window jika belum didefinisikan untuk menghindari duplikasi
+    const oldWindowOnClick = window.onclick;
+    window.onclick = function(event) {
         if (event.target.classList.contains('modal-overlay')) {
             event.target.style.display = "none";
             document.body.style.overflow = "auto";
         }
-    });
+        if (typeof oldWindowOnClick === 'function') {
+            oldWindowOnClick(event);
+        }
+    }
 </script>
 
 <%- include('layout/footer') %>

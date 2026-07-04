@@ -6,8 +6,8 @@ const env = require('../config/env');
  * Mencegah abuse & DDoS ringan.
  */
 exports.globalLimiter = rateLimit({
-    windowMs: env.RATE_LIMIT.windowMs,
-    max: env.RATE_LIMIT.max,
+    windowMs: env.RATE_LIMIT?.windowMs || 1 * 60 * 1000,
+    max: env.RATE_LIMIT?.max || 350,
     message: {
         success: false,
         message: 'Terlalu banyak request, coba lagi nanti'
@@ -22,7 +22,7 @@ exports.globalLimiter = rateLimit({
  */
 exports.loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: env.RATE_LIMIT.loginMax,
+    max: process.env.NODE_ENV === 'production' ? (env.RATE_LIMIT.loginMax || 10) : 100,
     message: {
         success: false,
         message: 'Terlalu banyak percobaan login, coba 15 menit lagi'

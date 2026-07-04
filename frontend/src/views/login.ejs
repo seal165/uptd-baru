@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
+    <script src="/config.js"></script>
 </head>
 <body class="login-body">
 
@@ -128,7 +129,7 @@
         async function fetchLatestUserProfile(token, fallbackUser) {
             if (!token) return fallbackUser;
             try {
-                const res = await fetch('http://localhost:5000/api/user/profile', {
+                const res = await fetch('<%= typeof backendUrl !== 'undefined' ? backendUrl : 'http://localhost:5000' %>/api/user/profile', {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${token}`,

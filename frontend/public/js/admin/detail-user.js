@@ -4,9 +4,7 @@
     'use strict';
 
     // ==================== KONFIGURASI ====================
-    const API_BASE_URL = window.location.origin === 'http://localhost:3000' 
-        ? 'http://localhost:5000/api' 
-        : '/api';
+    const API_BASE_URL = window.__APP_CONFIG__?.API_BASE_URL || 'http://localhost:5000/api';
     
     // Ambil ID dari URL
     const pathParts = window.location.pathname.split('/');
@@ -49,7 +47,7 @@
         
         try {
             // 🔴 PAKAI ENDPOINT /admin/users/:id/detail
-            const userResponse = await fetch(`${API_BASE_URL}/admin/users/${userId}/detail`, {
+            const userResponse = await fetch(`${API_BASE_URL}/users/${userId}/detail`, {
                 headers: { 'Authorization': `Bearer ${getToken()}` }
             });
 
@@ -107,8 +105,8 @@
             const result = await response.json();
             
             if (result.success) {
-                updateSubmissionsTable(result.data.submissions);
-                totalData = result.data.total;
+                updateSubmissionsTable(result.data);
+                totalData = result.pagination ? result.pagination.total : result.data.length;
                 updatePagination();
             }
         } catch (error) {
@@ -118,89 +116,93 @@
 
     // ==================== UPDATE PROFILE ====================
     function updateProfile(user) {
-            let avatarHtml = '';
-            if (user.avatar && user.avatar !== 'null' && user.avatar !== '') {
-                // Pastikan URL avatar valid
-                let avatarUrl = user.avatar;
-                // Jika avatar tidak dimulai dengan http, tambahkan base URL
-                if (!avatarUrl.startsWith('http')) {
-                    avatarUrl = avatarUrl.startsWith('/') ? `http://localhost:5000${avatarUrl}` : `http://localhost:5000/${avatarUrl}`;
-                }
-                const initial = (user.name || 'U').charAt(0).toUpperCase();
-                avatarHtml = `<img src="${avatarUrl}" alt="${user.name}" class="profile-avatar-img" onerror="this.outerHTML='<div class=\\'profile-avatar\\'>${initial}</div>'">`;
-            } else {
-                // Fallback ke inisial
-                const initial = (user.name || 'U').charAt(0).toUpperCase();
-                avatarHtml = `<div class="profile-avatar">${initial}</div>`;
+        console.log('📌 [updateProfile] User data:', user); // <-- TAMBAHKAN LOG
+
+        let avatarHtml = '';
+        if (user.avatar && user.avatar !== 'null' && user.avatar !== '') {
+            let avatarUrl = user.avatar;
+            if (!avatarUrl.startsWith('http')) {
+                const baseUrl = window.__APP_CONFIG__?.API_BASE_URL?.replace('/api', '') || '';
+                avatarUrl = avatarUrl.startsWith('/') ? `${baseUrl}${avatarUrl}` : `${baseUrl}/${avatarUrl}`;
             }
-            
-            const profileHtml = `
-                <div class="d-flex flex-column flex-md-row align-items-center align-items-md-start gap-4">
-                    <div class="profile-avatar-wrapper shadow-sm mb-3 mb-md-0">
-                        ${avatarHtml}
+            const initial = (user.full_name || 'U').charAt(0).toUpperCase();
+            avatarHtml = `<img src="${avatarUrl}" alt="${user.full_name}" class="profile-avatar-img" onerror="this.outerHTML='<div class=\\'profile-avatar\\'>${initial}</div>'">`;
+        } else {
+            const initial = (user.full_name || 'U').charAt(0).toUpperCase();
+            avatarHtml = `<div class="profile-avatar">${initial}</div>`;
+        }
+
+        // 🔥 AMBIL NILAI DENGAN FALLBACK AMAN
+        const totalTransactions = user.total_transactions ?? 0;
+        const completed = user.completed_transactions ?? 0;
+        const pending = user.pending_transactions ?? 0;
+        const totalPayments = user.total_payments ?? 0;
+
+        const profileHtml = `
+            <div class="d-flex flex-column flex-md-row align-items-center align-items-md-start gap-4">
+                <div class="profile-avatar-wrapper shadow-sm mb-3 mb-md-0">
+                    ${avatarHtml}
+                </div>
+                <div class="flex-grow-1 text-center text-md-start w-100">
+                    <div class="d-flex flex-column flex-md-row align-items-center gap-3 mb-3">
+                        <h4 class="fw-bold mb-0 text-dark">${user.full_name || '-'}</h4>
+                        <span class="badge bg-success rounded-pill px-3 py-2 fw-normal" style="font-size: 0.85rem;">
+                            <i class="fas fa-check-circle me-1"></i> Aktif
+                        </span>
                     </div>
-                    <div class="flex-grow-1 text-center text-md-start w-100">
-                        <div class="d-flex flex-column flex-md-row align-items-center gap-3 mb-3">
-                            <h4 class="fw-bold mb-0 text-dark">${user.name || '-'}</h4>
-                            <span class="badge ${user.status === 'active' ? 'bg-success' : user.status === 'pending' ? 'bg-warning' : 'bg-secondary'} rounded-pill px-3 py-2 fw-normal" style="font-size: 0.85rem;">
-                                <i class="fas ${user.status === 'active' ? 'fa-check-circle' : user.status === 'pending' ? 'fa-clock' : 'fa-ban'} me-1"></i>
-                                ${user.status === 'active' ? 'Aktif' : user.status === 'pending' ? 'Pending' : 'Nonaktif'}
-                            </span>
+                    
+                    <div class="row g-3">
+                        <div class="col-sm-6 col-md-4">
+                            <div class="d-flex align-items-center text-muted">
+                                <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-envelope fa-fw"></i></div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.7rem;">Email</small>
+                                    <span class="text-dark fw-medium" style="font-size: 0.9rem;">${user.email || '-'}</span>
+                                </div>
+                            </div>
                         </div>
-                        
-                        <div class="row g-3">
-                            <div class="col-sm-6 col-md-4">
-                                <div class="d-flex align-items-center text-muted">
-                                    <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-envelope fa-fw"></i></div>
-                                    <div>
-                                        <small class="d-block text-muted" style="font-size: 0.7rem;">Email</small>
-                                        <span class="text-dark fw-medium" style="font-size: 0.9rem;">${user.email || '-'}</span>
-                                    </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="d-flex align-items-center text-muted">
+                                <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-phone fa-fw"></i></div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.7rem;">Telepon</small>
+                                    <span class="text-dark fw-medium" style="font-size: 0.9rem;">${user.nomor_telepon || '-'}</span>
                                 </div>
                             </div>
-                            <div class="col-sm-6 col-md-4">
-                                <div class="d-flex align-items-center text-muted">
-                                    <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-phone fa-fw"></i></div>
-                                    <div>
-                                        <small class="d-block text-muted" style="font-size: 0.7rem;">Telepon</small>
-                                        <span class="text-dark fw-medium" style="font-size: 0.9rem;">${user.phone || '-'}</span>
-                                    </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="d-flex align-items-center text-muted">
+                                <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-building fa-fw"></i></div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.7rem;">Perusahaan</small>
+                                    <span class="text-dark fw-medium" style="font-size: 0.9rem;">${user.nama_instansi || 'Perorangan'}</span>
                                 </div>
                             </div>
-                            <div class="col-sm-6 col-md-4">
-                                <div class="d-flex align-items-center text-muted">
-                                    <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-building fa-fw"></i></div>
-                                    <div>
-                                        <small class="d-block text-muted" style="font-size: 0.7rem;">Perusahaan</small>
-                                        <span class="text-dark fw-medium" style="font-size: 0.9rem;">${user.company || 'Perorangan'}</span>
-                                    </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="d-flex align-items-center text-muted">
+                                <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-user-shield fa-fw"></i></div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.7rem;">Role</small>
+                                    <span class="text-dark fw-medium" style="font-size: 0.9rem;">${user.role === 'admin' ? 'Administrator' : 'Pemohon'}</span>
                                 </div>
                             </div>
-                            <div class="col-sm-6 col-md-4">
-                                <div class="d-flex align-items-center text-muted">
-                                    <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-user-shield fa-fw"></i></div>
-                                    <div>
-                                        <small class="d-block text-muted" style="font-size: 0.7rem;">Role</small>
-                                        <span class="text-dark fw-medium" style="font-size: 0.9rem;">${user.role === 'admin' ? 'Administrator' : 'Pemohon'}</span>
-                                    </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="d-flex align-items-center text-muted">
+                                <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-calendar-alt fa-fw"></i></div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.7rem;">Terdaftar Sejak</small>
+                                    <span class="text-dark fw-medium" style="font-size: 0.9rem;">${formatDate(user.created_at)}</span>
                                 </div>
                             </div>
-                            <div class="col-sm-6 col-md-4">
-                                <div class="d-flex align-items-center text-muted">
-                                    <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-calendar-alt fa-fw"></i></div>
-                                    <div>
-                                        <small class="d-block text-muted" style="font-size: 0.7rem;">Terdaftar Sejak</small>
-                                        <span class="text-dark fw-medium" style="font-size: 0.9rem;">${formatDate(user.created_at)}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-6 col-md-4">
-                                <div class="d-flex align-items-center text-muted">
-                                    <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-map-marker-alt fa-fw"></i></div>
-                                    <div>
-                                        <small class="d-block text-muted" style="font-size: 0.7rem;">Alamat</small>
-                                        <span class="text-dark fw-medium" style="font-size: 0.9rem;">${user.address || '-'}</span>
-                                    </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="d-flex align-items-center text-muted">
+                                <div class="bg-light rounded p-2 me-3 text-secondary"><i class="fas fa-map-marker-alt fa-fw"></i></div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.7rem;">Alamat</small>
+                                    <span class="text-dark fw-medium" style="font-size: 0.9rem;">${user.alamat || '-'}</span>
                                 </div>
                             </div>
                         </div>
@@ -208,32 +210,32 @@
                 </div>
             </div>
         `;
-        
+
         document.getElementById('profileCard').innerHTML = profileHtml;
 
-        // Stats row
+        // 🔥 STATS ROW – GUNAKAN NILAI YANG SUDAH DI-FALLBACK
         const statsHtml = `
             <div class="col-md-3">
                 <div class="stat-card-small">
-                    <div class="stat-number">${user.total_transactions || 0}</div>
+                    <div class="stat-number">${totalTransactions}</div>
                     <div class="stat-label">Total Pengajuan</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-card-small">
-                    <div class="stat-number text-success">${user.completed_transactions || 0}</div>
+                    <div class="stat-number text-success">${completed}</div>
                     <div class="stat-label">Selesai</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-card-small">
-                    <div class="stat-number text-warning">${user.pending_transactions || 0}</div>
+                    <div class="stat-number text-warning">${pending}</div>
                     <div class="stat-label">Dalam Proses</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-card-small">
-                    <div class="stat-number text-primary">${formatRupiah(user.total_payments || 0)}</div>
+                    <div class="stat-number text-primary">${formatRupiah(totalPayments)}</div>
                     <div class="stat-label">Total Pembayaran</div>
                 </div>
             </div>
@@ -279,24 +281,27 @@
                 statusClass = 'badge-soft-danger';
             }
             
-            // 🔴 PISAHKAN DATA - Jenis Uji hanya menampilkan type_name
-            const jenisUji = sub.jenis_uji || '-';
+            // 🔴 JENIS PENGUJIAN - ambil dari category_name (Pengujian Bahan/Konstruksi)
+            const jenisUji = sub.category_name || sub.jenis_uji || '-';
             
-            // 🔴 Jenis Sample menampilkan kategori_uji (Tanah, Beton, dll) atau jenis_sample
-            // Prioritaskan kategori_uji dulu, baru jenis_sample
-            const jenisSample = sub.kategori_uji && sub.kategori_uji !== '-' 
-                ? sub.kategori_uji 
-                : (sub.jenis_sample || '-');
+            // 🔴 Jenis Sample - ambil dari type_name (Tanah, Beton, dll)
+            const jenisSample = sub.type_name || sub.kategori_uji || sub.jenis_sample || '-';
+            
+            // 🔴 total_tagihan - ambil dari payment data jika ada, atau 0
+            const totalTagihan = parseFloat(sub.total_tagihan || 0);
             
             rowsHtml += `
                 <tr>
-                    <td class="ps-4"><span class="fw-bold text-dark">${sub.no_permohonan || '#' + sub.id}</span></td>
+                    <td class="ps-4">
+                        <span class="fw-bold text-dark">#${sub.id}</span>
+                        ${sub.no_permohonan ? `<small class="d-block text-muted">${sub.no_permohonan}</small>` : ''}
+                    </td>
                     <td><span class="text-secondary small">${jenisUji}</span></td>
                     <td><span class="text-secondary small">${jenisSample}</span></td>
                     <td><span class="text-secondary small">${sub.nama_proyek || '-'}</span></td>
                     <td><span class="text-secondary small">${formatDate(sub.created_at)}</span></td>
                     <td><span class="badge ${statusClass} rounded-pill px-3 py-1"><i class="fas fa-circle me-1" style="font-size: 0.5rem; vertical-align: middle;"></i>${sub.status}</span></td>
-                    <td class="fw-bold text-dark small">${formatRupiah(sub.total_tagihan || 0)}</td>
+                    <td class="fw-bold text-dark small">${totalTagihan > 0 ? formatRupiah(totalTagihan) : '-'}</td>
                     <td class="text-center pe-4">
                         <a href="/admin/submissions/${sub.id}" class="text-secondary align-middle action-icon" style="font-size: 1.1rem; text-decoration: none;" title="Detail">
                             <i class="fas fa-external-link-alt"></i>

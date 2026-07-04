@@ -1,29 +1,52 @@
 /**
  * Mount semua route domain di sini.
- *
- * Urutan:
- * 1. Route DOMAIN BARU (clean RESTful) di-mount duluan
- * 2. Legacy alias di-mount paling akhir (fallback untuk URL lama)
  */
 const express = require('express');
 const router = express.Router();
 
+console.log('📌 [INDEX] Starting route registration...');
+
 // Route baru (clean RESTful)
 router.use('/auth', require('./authRoute'));
-router.use('/public', require('./publicRoute'));
-router.use('/users', require('./userRoute'));
-router.use('/submissions', require('./submissionRoute'));
-router.use('/skrd', require('./skrdRoute'));
-router.use('/kuisioner', require('./kuisionerRoute'));
-router.use('/notifications', require('./notificationRoute'));
-router.use('/settings', require('./settingRoute'));
-router.use('/reports', require('./reportRoute'));
-router.use('/transactions', require('./transactionRoute'));
-router.use('/files', require('./fileRoute'));
-router.use('/dashboard', require('./dashboardRoute'));
+console.log('📌 /auth mounted');
 
-// Backward compatibility layer (opsional — sudah dimatikan karena
-// frontend v2.0 udah pakai URL clean. Aktifkan kalau perlu transisi.)
-// router.use('/', require('./legacyAliasRoute'));
+router.use('/public', require('./publicRoute'));
+console.log('📌 /public mounted');
+
+router.use('/user', require('./userRoute'));
+console.log('📌 /user mounted');
+
+// 🔥 PASTIKAN INI ADA DAN TIDAK ERROR
+router.use('/users', require('./userRoute'));
+console.log('📌 /users mounted');
+
+router.use('/submissions', require('./submissionRoute'));
+console.log('📌 /submissions mounted');
+
+router.use('/skrd', require('./skrdRoute'));
+console.log('📌 /skrd mounted');
+
+router.use('/kuisioner', require('./kuisionerRoute'));
+console.log('📌 /kuisioner mounted');
+
+router.use('/notifications', require('./notificationRoute'));
+console.log('📌 /notifications mounted');
+
+router.use('/settings', require('./settingRoute'));
+console.log('📌 /settings mounted');
+
+router.use('/reports', require('./reportRoute'));
+console.log('📌 /reports mounted');
+
+router.use('/transactions', require('./transactionRoute'));
+console.log('📌 /transactions mounted');
+
+router.use('/files', require('./fileRoute'));
+console.log('📌 /files mounted');
+
+router.use('/dashboard', require('./dashboardRoute'));
+console.log('📌 /dashboard mounted');
+
+console.log('📌 [INDEX] All routes mounted successfully');
 
 module.exports = router;
