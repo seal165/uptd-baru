@@ -12,7 +12,7 @@ const authMiddleware = {
     redirectIfAuthenticated: (req, res, next) => {
         if (req.session && req.session.user) {
             const role = req.session.user.role;
-            if (['admin', 'superadmin', 'petugas'].includes(role)) {
+            if (['admin', 'super_admin'].includes(role)) {
                 // Kalau admin akses halaman login user, destroy session-nya
                 if (req.path === '/login' || req.path === '/register') {
                     req.session.destroy(() => {
@@ -38,7 +38,7 @@ const authMiddleware = {
             return res.redirect('/admin/login');
         }
         const role = req.session.user.role;
-        if (!['admin', 'superadmin', 'petugas'].includes(role)) {
+        if (!['admin', 'super_admin'].includes(role)) {
             if (role === 'pelanggan') return res.redirect('/user/dashboard');
             return res.redirect('/');
         }
@@ -54,7 +54,7 @@ const authMiddleware = {
         }
         const role = req.session.user.role;
         if (role === 'pelanggan') return next();
-        if (['admin', 'superadmin'].includes(role)) {
+        if (['admin', 'super_admin'].includes(role)) {
             return res.redirect('/admin/dashboard');
         }
         logger.warn('Unknown role accessing user area: ' + role);

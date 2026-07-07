@@ -14,3 +14,17 @@ exports.requireRole = (...roles) => {
         next();
     };
 };
+
+// Helper: allow admin OR super_admin
+exports.isAdminOrSuperAdmin = (req, res, next) => {
+    if (!req.user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    if (req.user.role === 'admin' || req.user.role === 'super_admin') return next();
+    return res.status(403).json({ success: false, message: 'Forbidden: admin or super_admin only' });
+};
+
+// Helper: allow only super_admin
+exports.isSuperAdmin = (req, res, next) => {
+    if (!req.user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    if (req.user.role === 'super_admin') return next();
+    return res.status(403).json({ success: false, message: 'Forbidden: super_admin only' });
+};

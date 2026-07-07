@@ -30,7 +30,7 @@ module.exports = async (req, res, next) => {
 
     if (
         req.session?.user &&
-        ['admin', 'superadmin'].includes(req.session.user.role)
+        ['admin', 'super_admin'].includes(req.session.user.role)
     ) {
         return next();
     }

@@ -1,0 +1,525 @@
+/* ============================================
+   AUTH.CSS - UPTD Laboratorium Pengujian Banten
+   Forgot Password & Authentication Pages
+   ============================================ */
+
+/* ---------- RESET & BASE ---------- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f8fafc;
+    color: #1e293b;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ---------- CONTAINER ---------- */
+.auth-container {
+    display: flex;
+    width: 100%;
+    max-width: 1200px;
+    min-height: 100vh;
+    background-color: #ffffff;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    border-radius: 0;
+    overflow: hidden;
+    margin: 0;
+}
+
+@media (min-width: 992px) {
+    .auth-container {
+        min-height: 90vh;
+        border-radius: 24px;
+        margin: 20px;
+    }
+}
+
+/* ---------- LEFT COLUMN - FORM ---------- */
+.auth-form-container {
+    flex: 1 1 55%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 40px;
+    background-color: #ffffff;
+}
+
+.auth-form-content {
+    width: 100%;
+    max-width: 400px;
+}
+
+/* Back Link */
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #64748b;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    margin-bottom: 32px;
+}
+
+.back-link:hover {
+    color: #1e293b;
+}
+
+.back-link i {
+    font-size: 0.75rem;
+}
+
+/* Header */
+.auth-header {
+    margin-bottom: 32px;
+}
+
+.auth-header h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.025em;
+    margin-bottom: 8px;
+}
+
+.auth-header p {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 340px;
+    margin: 0 auto;
+}
+
+.text-center {
+    text-align: center;
+}
+
+/* ---------- FORM ELEMENTS ---------- */
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1e293b;
+    letter-spacing: 0.01em;
+}
+
+.input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 14px;
+    color: #94a3b8;
+    font-size: 1rem;
+    pointer-events: none;
+    transition: color 0.2s ease;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px 12px 44px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: #1e293b;
+    background-color: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    transition: all 0.25s ease;
+    outline: none;
+}
+
+.form-control::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.form-control:focus {
+    border-color: #3b82f6;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.form-control:focus + .input-icon,
+.input-group:focus-within .input-icon {
+    color: #3b82f6;
+}
+
+.form-control.is-invalid {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+}
+
+.form-control.is-invalid:focus {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+/* ---------- BUTTON ---------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 28px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: inherit;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-decoration: none;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.30);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.40);
+    transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-block {
+    width: 100%;
+    justify-content: center;
+}
+
+/* ---------- ALERT MESSAGES ---------- */
+.alert {
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.5;
+    margin-bottom: 20px;
+    display: none;
+    align-items: flex-start;
+    gap: 10px;
+    border: 1px solid transparent;
+}
+
+.alert-success {
+    display: flex;
+    color: #065f46;
+    background-color: #ecfdf5;
+    border-color: #a7f3d0;
+}
+
+.alert-danger {
+    display: flex;
+    color: #991b1b;
+    background-color: #fef2f2;
+    border-color: #fca5a5;
+}
+
+.alert::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.alert-success::before {
+    content: '\f00c';  /* fa-check-circle */
+    color: #10b981;
+}
+
+.alert-danger::before {
+    content: '\f071';  /* fa-exclamation-triangle */
+    color: #ef4444;
+}
+
+/* ---------- FOOTER ---------- */
+.auth-footer {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.auth-footer p {
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
+.auth-footer a {
+    color: #2563eb;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.auth-footer a:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+.mt-4 {
+    margin-top: 1.5rem;
+}
+
+/* ---------- RIGHT COLUMN - BRANDING ---------- */
+.auth-branding {
+    flex: 1 1 45%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, #0b1e4a, #1a3a7a);
+    padding: 48px 40px;
+    overflow: hidden;
+    min-height: 300px;
+}
+
+.auth-branding::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 60%),
+        radial-gradient(circle at 80% 20%, rgba(37, 99, 235, 0.10) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.branding-overlay {
+    position: absolute;
+    inset: 0;
+    background:
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.branding-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    color: #ffffff;
+    max-width: 400px;
+}
+
+.branding-content img {
+    filter: brightness(0) invert(1) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.20));
+    margin-bottom: 24px;
+    width: 90px;
+    height: auto;
+}
+
+.branding-content h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
+}
+
+.branding-content p {
+    font-size: 0.95rem;
+    font-weight: 400;
+    line-height: 1.6;
+    opacity: 0.85;
+    max-width: 360px;
+    margin: 0 auto;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.10);
+}
+
+/* ---------- RESPONSIVE ---------- */
+
+/* Tablet & smaller screens */
+@media (max-width: 991px) {
+    .auth-container {
+        flex-direction: column;
+        min-height: 100vh;
+        border-radius: 0;
+        margin: 0;
+        box-shadow: none;
+    }
+
+    .auth-form-container {
+        flex: 1 1 auto;
+        padding: 40px 24px;
+        order: 2;
+    }
+
+    .auth-form-content {
+        max-width: 420px;
+    }
+
+    .auth-branding {
+        flex: 0 0 auto;
+        padding: 40px 24px;
+        min-height: 200px;
+        order: 1;
+        border-radius: 0 0 32px 32px;
+    }
+
+    .branding-content h1 {
+        font-size: 1.5rem;
+    }
+
+    .branding-content img {
+        width: 70px;
+        margin-bottom: 16px;
+    }
+
+    .branding-content p {
+        font-size: 0.85rem;
+        max-width: 300px;
+    }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .auth-form-container {
+        padding: 28px 16px;
+    }
+
+    .auth-header h2 {
+        font-size: 1.35rem;
+    }
+
+    .auth-header p {
+        font-size: 0.85rem;
+    }
+
+    .form-control {
+        padding: 11px 14px 11px 40px;
+        font-size: 0.9rem;
+        border-radius: 10px;
+    }
+
+    .input-icon {
+        left: 12px;
+        font-size: 0.9rem;
+    }
+
+    .btn {
+        padding: 13px 20px;
+        font-size: 0.9rem;
+        border-radius: 10px;
+    }
+
+    .auth-branding {
+        padding: 30px 16px;
+        min-height: 160px;
+        border-radius: 0 0 24px 24px;
+    }
+
+    .branding-content h1 {
+        font-size: 1.2rem;
+    }
+
+    .branding-content img {
+        width: 56px;
+        margin-bottom: 12px;
+    }
+
+    .branding-content p {
+        font-size: 0.75rem;
+        max-width: 260px;
+    }
+
+    .back-link {
+        font-size: 0.8rem;
+        margin-bottom: 24px;
+    }
+
+    .alert {
+        font-size: 0.8rem;
+        padding: 12px 14px;
+        border-radius: 10px;
+    }
+
+    .auth-footer p {
+        font-size: 0.8rem;
+    }
+}
+
+/* ---------- UTILITY ---------- */
+/* Spinner inside button */
+.fa-spinner {
+    animation: fa-spin 1s infinite linear;
+}
+
+@keyframes fa-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Focus-visible for accessibility */
+button:focus-visible,
+input:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Smooth transitions for all interactive elements */
+a,
+button,
+input,
+.alert {
+    transition: all 0.2s ease;
+}
+
+/* Prevent zoom on input focus (iOS) */
+input {
+    font-size: 16px;
+}
+
+/* Custom scrollbar (optional) */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}

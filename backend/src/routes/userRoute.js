@@ -19,13 +19,13 @@ const {
 } = require('../validations/userValidation');
 
 // =========== ADMIN MANAGE USER ===========
-router.get('/', authMiddleware, requireRole('admin'), userController.list);
-router.get('/:id/detail', authMiddleware, requireRole('admin'), userController.detail);
-router.put('/:id', authMiddleware, requireRole('admin'), validate(adminUpdateUserSchema), userController.update);
-router.delete('/:id', authMiddleware, requireRole('admin'), userController.delete);
-router.post('/:id/verify', authMiddleware, requireRole('admin'), userController.verify);
-router.post('/:id/deactivate', authMiddleware, requireRole('admin'), userController.deactivate);
-router.post('/:id/reset-password', authMiddleware, requireRole('admin'), userController.resetPassword);
+router.get('/', authMiddleware, requireRole('admin','super_admin'), userController.list);
+router.get('/:id/detail', authMiddleware, requireRole('admin','super_admin'), userController.detail);
+router.put('/:id', authMiddleware, requireRole('admin','super_admin'), validate(adminUpdateUserSchema), userController.update);
+router.delete('/:id', authMiddleware, requireRole('admin','super_admin'), userController.delete);
+router.post('/:id/verify', authMiddleware, requireRole('admin','super_admin'), userController.verify);
+router.post('/:id/deactivate', authMiddleware, requireRole('admin','super_admin'), userController.deactivate);
+router.post('/:id/reset-password', authMiddleware, requireRole('admin','super_admin'), userController.resetPassword);
 router.post('/change-password', authMiddleware, validate(changePasswordSchema), userController.changePassword);
 router.post('/:id/notify', authMiddleware, requireRole('admin'), userController.sendNotification);
 

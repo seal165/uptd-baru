@@ -12,6 +12,8 @@ const hpp = require('hpp');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 
+const socketUtil = require('./src/utils/socket');
+
 const env = require('./src/config/env');
 const logger = require('./src/utils/logger');
 console.log('🟢 [3] Sebelum require routes...');
@@ -51,6 +53,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+
 // Anti HTTP Parameter Pollution
 app.use(hpp());
 
@@ -74,6 +77,8 @@ app.use('/uploads/avatar', express.static(path.join(__dirname, 'uploads/avatar')
 
 // 404 + Global error handler (PALING BAWAH)
 app.use(notFound);
+
+
 app.use(errorHandler);
 
 // Start server
@@ -81,6 +86,9 @@ const server = app.listen(env.PORT, () => {
     console.log(`🚀🚀🚀 SERVER BERHASIL JALAN DI PORT ${env.PORT} !!!`);
     logger.info(`Server running on port ${env.PORT} [${env.NODE_ENV}]`);
 });
+
+// Setup Socket.IO
+socketUtil.init(server);
 
 // Graceful shutdown
 process.on('unhandledRejection', (err) => {

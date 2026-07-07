@@ -53,7 +53,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.post('/log-src', express.json(), (req, res) => { require('fs').writeFileSync('d:/Magang/baru/uptd-baru/frontend/img-src.log', JSON.stringify(req.body)); res.send('ok'); }); app.use('/', mainRoutes);
+app.use('/', mainRoutes);
 
 app.use((req, res) => {
     res.redirect('/');

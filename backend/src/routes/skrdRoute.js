@@ -15,7 +15,7 @@ router.get('/:id/download-skrd', authMiddleware, skrdController.downloadFile);
 router.post(
     '/',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     validate(createSchema),
     skrdController.create
 );
@@ -23,7 +23,7 @@ router.post(
 router.put(
     '/:id/status',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     validate(updateStatusSchema),
     skrdController.updateStatus
 );
@@ -31,7 +31,7 @@ router.put(
 router.post(
     '/:id/upload-skrd',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     upload.single('skrd'),
     checkUploadSize,
     skrdController.uploadFile
@@ -48,21 +48,21 @@ router.post(
 router.post(
     '/:id/verify-payment',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     skrdController.verifyPayment
 );
 
 router.post(
     '/:id/reject-proof',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     skrdController.rejectProof
 );
 
 router.post(
     '/:id/remind',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     skrdController.sendReminder
 );
 

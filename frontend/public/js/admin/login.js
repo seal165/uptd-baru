@@ -79,7 +79,7 @@ async function handleLogin(event) {
             
             console.log('👤 User role:', role);
             
-            if (role === 'admin' || role === 'superadmin' || role === 'petugas') {
+            if (role === 'admin' || role === 'super_admin') {
                 console.log('✅ Admin access granted');
                 
                 // HAPUS semua token lama

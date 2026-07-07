@@ -7,8 +7,8 @@ const maintenanceCheck = async (req, res, next) => {
         return next();
     }
 
-    // 🔥 ADMIN DAN SUPERADMIN BEBAS LEWAT
-    if (req.session?.user && (req.session.user.role === 'admin' || req.session.user.role === 'superadmin')) {
+    // 🔥 ADMIN DAN SUPER_ADMIN BEBAS LEWAT
+    if (req.session?.user && (req.session.user.role === 'admin' || req.session.user.role === 'super_admin')) {
         return next();
     }
 

@@ -5,8 +5,8 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const { requireRole } = require('../middlewares/roleMiddleware');
 
 // Admin
-router.get('/admin', authMiddleware, requireRole('admin', 'petugas'), notificationController.adminList);
-router.put('/admin/mark-all-read', authMiddleware, requireRole('admin', 'petugas'), notificationController.markAllAdminRead);
+router.get('/admin', authMiddleware, requireRole('admin', 'super_admin'), notificationController.adminList);
+router.put('/admin/mark-all-read', authMiddleware, requireRole('admin', 'super_admin'), notificationController.markAllAdminRead);
 
 // User
 router.get('/user', authMiddleware, notificationController.userList);

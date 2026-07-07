@@ -2,8 +2,8 @@
 const db = require('../config/database');
 
 const maintenanceCheck = async (req, res, next) => {
-    // Lewati jika user adalah admin (role admin/superadmin)
-    if (req.session?.user && (req.session.user.role === 'admin' || req.session.user.role === 'superadmin')) {
+    // Lewati jika user adalah admin (role admin/super_admin)
+    if (req.session?.user && (req.session.user.role === 'admin' || req.session.user.role === 'super_admin')) {
         return next();
     }
 

@@ -66,6 +66,15 @@ exports.deactivate = async (req, res, next) => {
 
 exports.resetPassword = async (req, res, next) => {
     try {
+        // Ambil target user
+        const targetUser = await userModel.findById(req.params.id);
+        if (!targetUser) return error(res, 404, 'User tidak ditemukan');
+
+        // Jika yang melakukan request adalah admin biasa, batasi hanya untuk pelanggan
+        if (req.user.role === 'admin' && targetUser.role !== 'pelanggan') {
+            return error(res, 403, 'Admin hanya bisa mereset password untuk pelanggan');
+        }
+
         const defaultPassword = 'uptdlab2026';
         const hashed = await bcrypt.hash(defaultPassword, env.BCRYPT_SALT_ROUNDS);
         const affected = await userModel.updatePassword(req.params.id, hashed);

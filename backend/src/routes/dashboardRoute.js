@@ -7,14 +7,14 @@ const { requireRole } = require('../middlewares/roleMiddleware');
 router.get(
     '/admin/stats',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     dashboardController.adminStats
 );
 
 router.get(
     '/complete',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     dashboardController.getData
 );
 

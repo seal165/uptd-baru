@@ -13,7 +13,7 @@ router.get('/', authMiddleware, requireRole('admin', 'petugas'), reportControlle
 router.post(
     '/submissions/:id',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     upload.single('laporan'),
     checkUploadSize,
     reportController.uploadSubmissionReport
@@ -28,7 +28,7 @@ router.get(
 router.delete(
     '/submissions/:id',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     reportController.deleteSubmissionReport
 );
 

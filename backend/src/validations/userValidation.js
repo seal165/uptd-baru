@@ -16,7 +16,7 @@ exports.adminUpdateUserSchema = Joi.object({
     nama_instansi: Joi.string().max(255).allow('', null),
     alamat: Joi.string().max(500).allow('', null),
     nomor_telepon: Joi.string().pattern(/^[0-9+\-\s]{10,20}$/).allow('', null),
-    role: Joi.string().valid('admin', 'petugas', 'pelanggan'),
+    role: Joi.string().valid('admin', 'super_admin', 'pelanggan'),
     employee_id: Joi.string().max(50).allow('', null)
 }).min(1);
 

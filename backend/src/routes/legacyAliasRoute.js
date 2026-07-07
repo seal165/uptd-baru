@@ -142,26 +142,26 @@ router.post(
 router.get(
     '/admin/notifications',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     notificationController.adminList
 );
 router.put(
     '/admin/notifications/mark-all-read',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     notificationController.markAllAdminRead
 );
 
 router.get(
     '/admin/dashboard/stats',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     dashboardController.adminStats
 );
 router.get(
     '/dashboard/complete',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     dashboardController.getData
 );
 
@@ -169,19 +169,19 @@ router.get(
 router.get(
     '/admin/kuisioner',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     kuisionerController.list
 );
 router.get(
     '/admin/kuisioner/:id',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     kuisionerController.detail
 );
 router.get(
     '/admin/kuisioner-stats',
     authMiddleware,
-    requireRole('admin', 'petugas'),
+    requireRole('admin', 'super_admin'),
     kuisionerController.stats
 );
 
